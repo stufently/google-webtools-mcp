@@ -1,0 +1,48 @@
+{
+  "name": "google-webtools-mcp",
+  "version": "1.0.0",
+  "description": "Unified MCP server for Google Analytics 4 + Google Search Console — manage properties, reports, verification, and SEO analysis",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "google-webtools-mcp": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/cli.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "google-search-console",
+    "seo",
+    "search-analytics",
+    "claude",
+    "model-context-protocol",
+    "google-analytics",
+    "ga4",
+    "site-verification"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "googleapis": "^148.0.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

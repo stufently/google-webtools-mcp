@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+*.tgz
+.env
+credentials/
+credentials.json
+token.json
+.DS_Store
+coverage/

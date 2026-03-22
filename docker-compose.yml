@@ -1,0 +1,12 @@
+services:
+  google-webtools-mcp:
+    build: .
+    stdin_open: true
+    volumes:
+      - ./credentials:/app/credentials:ro
+      - mcp-tokens:/root/.google-webtools-mcp
+    environment:
+      - GSC_OAUTH_CLIENT_SECRETS_FILE=/app/credentials/client_secrets.json
+
+volumes:
+  mcp-tokens:
