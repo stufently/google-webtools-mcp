@@ -33,7 +33,12 @@ const REQUIRED_FIELDS: ReadonlyArray<keyof ServiceAccountCredentials> = [
   'token_uri',
 ];
 
-const WEBMASTERS_SCOPE = 'https://www.googleapis.com/auth/webmasters';
+const ALL_SCOPES = [
+  'https://www.googleapis.com/auth/webmasters',
+  'https://www.googleapis.com/auth/analytics.readonly',
+  'https://www.googleapis.com/auth/analytics.edit',
+  'https://www.googleapis.com/auth/siteverification.verify_only',
+];
 
 /**
  * Validates that a parsed JSON object contains all required service account fields.
@@ -158,6 +163,6 @@ export function createServiceAccountAuth(
       private_key: credentials.private_key,
     },
     projectId: credentials.project_id,
-    scopes: [WEBMASTERS_SCOPE],
+    scopes: ALL_SCOPES,
   });
 }

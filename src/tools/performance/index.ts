@@ -30,28 +30,11 @@ import type {
   DimensionFilter,
   DimensionFilterGroup,
 } from '../../api/types.js';
-import { GscError } from '../../errors/gsc-error.js';
+import { formatErrorForMcp } from '../../errors/error-handler.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Format an error into an MCP tool error response.
- */
-function errorResponse(error: unknown) {
-  const message =
-    error instanceof GscError
-      ? `${error.message}${error.recoveryHint ? `\n\nHint: ${error.recoveryHint}` : ''}`
-      : error instanceof Error
-        ? error.message
-        : 'An unexpected error occurred.';
-
-  return {
-    content: [{ type: 'text' as const, text: message }],
-    isError: true,
-  };
-}
 
 /**
  * Compute the percentage change between two numbers.
@@ -183,7 +166,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         const text = formatToolResponse(createToolResponse(table, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -282,7 +265,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         const text = formatToolResponse(createToolResponse(table, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -423,7 +406,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         ]));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -530,7 +513,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         const text = formatToolResponse(createToolResponse(table, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -640,7 +623,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         const text = formatToolResponse(createToolResponse(table, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -766,7 +749,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         const text = formatToolResponse(createToolResponse(table, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );

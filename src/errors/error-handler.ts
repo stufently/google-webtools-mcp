@@ -43,6 +43,7 @@ interface GoogleApiErrorLike {
 
 /** The MCP-compliant error payload returned to the host. */
 export interface McpErrorResponse {
+  [key: string]: unknown;
   content: Array<{ type: "text"; text: string }>;
   isError: true;
 }

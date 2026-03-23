@@ -17,7 +17,7 @@ import type {
   SitemapInfo,
 } from '../../api/types.js';
 import { siteUrlSchema, searchTypeSchema } from '../schemas.js';
-import { GscError } from '../../errors/gsc-error.js';
+import { formatErrorForMcp } from '../../errors/error-handler.js';
 
 // Analysis modules
 import { getExpectedCtr, analyzeCtr } from '../../analysis/ctr-benchmarks.js';
@@ -41,23 +41,6 @@ interface PerformanceTotals {
   impressions: number;
   ctr: number;
   position: number;
-}
-
-/**
- * Format an error into an MCP tool error response.
- */
-function errorResponse(error: unknown) {
-  const message =
-    error instanceof GscError
-      ? `${error.message}${error.recoveryHint ? `\n\nHint: ${error.recoveryHint}` : ''}`
-      : error instanceof Error
-        ? error.message
-        : 'An unexpected error occurred.';
-
-  return {
-    content: [{ type: 'text' as const, text: message }],
-    isError: true,
-  };
 }
 
 /**
@@ -601,7 +584,7 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
         const report = sections.join('\n');
         return { content: [{ type: 'text' as const, text: report }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -1085,7 +1068,7 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
         const report = sections.join('\n');
         return { content: [{ type: 'text' as const, text: report }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );

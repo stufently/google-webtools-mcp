@@ -2,24 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { Ga4ApiClient } from '../../api/ga4-client.js';
 import { createToolResponse, formatToolResponse } from '../schemas.js';
-import { GscError } from '../../errors/gsc-error.js';
-
-/**
- * Format an error into an MCP tool error response.
- */
-function errorResponse(error: unknown) {
-  const message =
-    error instanceof GscError
-      ? `${error.message}${error.recoveryHint ? `\n\nHint: ${error.recoveryHint}` : ''}`
-      : error instanceof Error
-        ? error.message
-        : 'An unexpected error occurred.';
-
-  return {
-    content: [{ type: 'text' as const, text: message }],
-    isError: true,
-  };
-}
+import { formatErrorForMcp } from '../../errors/error-handler.js';
 
 export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): void {
   // ── ga4_list_accounts ─────────────────────────────────────────────────
@@ -58,7 +41,7 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -106,7 +89,7 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -146,7 +129,7 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
         const text = formatToolResponse(createToolResponse(data, summary, [], []));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -198,7 +181,7 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -250,7 +233,7 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -293,7 +276,7 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -335,7 +318,7 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
         const text = formatToolResponse(createToolResponse(data, summary, [], []));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );

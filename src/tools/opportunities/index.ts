@@ -16,7 +16,7 @@ import { classifyQuery, classifyQueries } from '../../analysis/query-classifier.
 import { getDateRange, getPreviousPeriod, type DatePeriod } from '../../utils/date-helpers.js';
 import { formatNumber, formatPercent, formatPosition, formatChange } from '../../utils/formatting.js';
 import { siteUrlSchema, periodSchema, searchTypeSchema } from '../schemas.js';
-import { GscError } from '../../errors/gsc-error.js';
+import { formatErrorForMcp } from '../../errors/error-handler.js';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -34,20 +34,6 @@ const SHARED_LIMITATIONS = [
   'GSC data is typically delayed by 2-3 days. Very recent changes may not be reflected.',
   'Position values are averages and may not reflect the actual position for every query.',
 ];
-
-function errorResponse(error: unknown) {
-  const message =
-    error instanceof GscError
-      ? `${error.message}${error.recoveryHint ? `\n\nHint: ${error.recoveryHint}` : ''}`
-      : error instanceof Error
-        ? error.message
-        : 'An unexpected error occurred.';
-
-  return {
-    content: [{ type: 'text' as const, text: `**Error:** ${message}` }],
-    isError: true,
-  };
-}
 
 /**
  * Scores an opportunity based on traffic impact potential.
@@ -305,7 +291,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
 
         return { content: [{ type: 'text' as const, text: parts.join('\n') }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -491,7 +477,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
 
         return { content: [{ type: 'text' as const, text: parts.join('\n') }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -678,7 +664,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
 
         return { content: [{ type: 'text' as const, text: parts.join('\n') }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -977,7 +963,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
 
         return { content: [{ type: 'text' as const, text: parts.join('\n') }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -1269,7 +1255,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
 
         return { content: [{ type: 'text' as const, text: parts.join('\n') }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );

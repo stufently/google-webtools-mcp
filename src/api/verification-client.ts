@@ -17,12 +17,20 @@ export class VerificationApiClient {
     this.rateLimiter = rateLimiter ?? new RateLimiter(5, 10);
   }
 
+  private normalizeSite(siteUrl: string): { type: string; identifier: string } {
+    if (siteUrl.startsWith('sc-domain:')) {
+      return { type: 'INET_DOMAIN', identifier: siteUrl.replace('sc-domain:', '') };
+    }
+    if (siteUrl.startsWith('http')) {
+      return { type: 'SITE', identifier: siteUrl };
+    }
+    // Bare domain
+    return { type: 'INET_DOMAIN', identifier: siteUrl };
+  }
+
   async getToken(siteUrl: string, method: string): Promise<VerificationToken> {
     await this.rateLimiter.acquire();
-    // Determine if domain or site
-    const isDomain = !siteUrl.startsWith('http');
-    const type = isDomain ? 'INET_DOMAIN' : 'SITE';
-    const identifier = siteUrl;
+    const { type, identifier } = this.normalizeSite(siteUrl);
 
     const res = await this.verification.webResource.getToken({
       requestBody: {
@@ -38,13 +46,12 @@ export class VerificationApiClient {
 
   async verifySite(siteUrl: string, method: string): Promise<{ success: boolean; owners?: string[] }> {
     await this.rateLimiter.acquire();
-    const isDomain = !siteUrl.startsWith('http');
-    const type = isDomain ? 'INET_DOMAIN' : 'SITE';
+    const { type, identifier } = this.normalizeSite(siteUrl);
 
     const res = await this.verification.webResource.insert({
       verificationMethod: method,
       requestBody: {
-        site: { type, identifier: siteUrl },
+        site: { type, identifier },
       },
     });
     return {

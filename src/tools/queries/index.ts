@@ -28,6 +28,7 @@ import {
   periodSchema,
   searchTypeSchema,
 } from '../schemas.js';
+import { formatErrorForMcp } from '../../errors/error-handler.js';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -47,15 +48,6 @@ function extractBrandName(siteUrl: string): string {
   // Remove TLD (everything after last dot)
   const parts = cleaned.split('.');
   return parts.length > 1 ? parts.slice(0, -1).join('.') : cleaned;
-}
-
-function errorResponse(error: unknown) {
-  const message =
-    error instanceof Error ? error.message : 'An unexpected error occurred.';
-  return {
-    content: [{ type: 'text' as const, text: `**Error:** ${message}` }],
-    isError: true,
-  };
 }
 
 const LIMITATIONS = [
@@ -282,7 +274,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
           content: [{ type: 'text' as const, text: parts.join('\n') }],
         };
       } catch (err) {
-        return errorResponse(err);
+        return formatErrorForMcp(err);
       }
     },
   );
@@ -508,7 +500,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
           content: [{ type: 'text' as const, text: parts.join('\n') }],
         };
       } catch (err) {
-        return errorResponse(err);
+        return formatErrorForMcp(err);
       }
     },
   );
@@ -772,7 +764,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
           content: [{ type: 'text' as const, text: parts.join('\n') }],
         };
       } catch (err) {
-        return errorResponse(err);
+        return formatErrorForMcp(err);
       }
     },
   );

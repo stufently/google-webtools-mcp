@@ -21,17 +21,28 @@ export class Ga4ApiClient {
   // --- Admin methods ---
 
   async listAccountSummaries(): Promise<Ga4AccountSummary[]> {
-    await this.rateLimiter.acquire();
-    const res = await this.admin.accountSummaries.list({ pageSize: 200 });
-    return (res.data.accountSummaries ?? []) as Ga4AccountSummary[];
+    const all: Ga4AccountSummary[] = [];
+    let pageToken: string | undefined;
+    do {
+      await this.rateLimiter.acquire();
+      const res = await this.admin.accountSummaries.list({ pageSize: 200, pageToken });
+      all.push(...(res.data.accountSummaries ?? []) as Ga4AccountSummary[]);
+      pageToken = res.data.nextPageToken ?? undefined;
+    } while (pageToken);
+    return all;
   }
 
   async listProperties(accountId: string): Promise<Ga4Property[]> {
-    await this.rateLimiter.acquire();
-    // Filter requires format "parent:accounts/123"
     const filter = accountId.startsWith('accounts/') ? `parent:${accountId}` : `parent:accounts/${accountId}`;
-    const res = await this.admin.properties.list({ filter, pageSize: 200 });
-    return (res.data.properties ?? []) as Ga4Property[];
+    const all: Ga4Property[] = [];
+    let pageToken: string | undefined;
+    do {
+      await this.rateLimiter.acquire();
+      const res = await this.admin.properties.list({ filter, pageSize: 200, pageToken });
+      all.push(...(res.data.properties ?? []) as Ga4Property[]);
+      pageToken = res.data.nextPageToken ?? undefined;
+    } while (pageToken);
+    return all;
   }
 
   async getProperty(propertyId: string): Promise<Ga4Property> {
@@ -80,10 +91,16 @@ export class Ga4ApiClient {
   }
 
   async listDataStreams(propertyId: string): Promise<Ga4DataStream[]> {
-    await this.rateLimiter.acquire();
     const parent = propertyId.startsWith('properties/') ? propertyId : `properties/${propertyId}`;
-    const res = await this.admin.properties.dataStreams.list({ parent, pageSize: 200 });
-    return (res.data.dataStreams ?? []) as Ga4DataStream[];
+    const all: Ga4DataStream[] = [];
+    let pageToken: string | undefined;
+    do {
+      await this.rateLimiter.acquire();
+      const res = await this.admin.properties.dataStreams.list({ parent, pageSize: 200, pageToken });
+      all.push(...(res.data.dataStreams ?? []) as Ga4DataStream[]);
+      pageToken = res.data.nextPageToken ?? undefined;
+    } while (pageToken);
+    return all;
   }
 
   async getDataStream(propertyId: string, streamId: string): Promise<Ga4DataStream> {

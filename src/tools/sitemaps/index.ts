@@ -2,25 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import { siteUrlSchema, createToolResponse, formatToolResponse } from '../schemas.js';
-import { GscError } from '../../errors/gsc-error.js';
+import { formatErrorForMcp } from '../../errors/error-handler.js';
 import { formatNumber } from '../../utils/formatting.js';
-
-/**
- * Format an error into an MCP tool error response.
- */
-function errorResponse(error: unknown) {
-  const message =
-    error instanceof GscError
-      ? `${error.message}${error.recoveryHint ? `\n\nHint: ${error.recoveryHint}` : ''}`
-      : error instanceof Error
-        ? error.message
-        : 'An unexpected error occurred.';
-
-  return {
-    content: [{ type: 'text' as const, text: message }],
-    isError: true,
-  };
-}
 
 const feedpathSchema = z.string().describe(
   'The URL of the sitemap (e.g., "https://example.com/sitemap.xml")',
@@ -85,7 +68,7 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -161,7 +144,7 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -196,7 +179,7 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
         ));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -229,7 +212,7 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
         ));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );

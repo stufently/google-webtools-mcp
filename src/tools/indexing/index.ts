@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import { siteUrlSchema, createToolResponse, formatToolResponse } from '../schemas.js';
-import { GscError } from '../../errors/gsc-error.js';
+import { formatErrorForMcp } from '../../errors/error-handler.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,20 +44,6 @@ interface InspectionResult {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function errorResponse(error: unknown) {
-  const message =
-    error instanceof GscError
-      ? `${error.message}${error.recoveryHint ? `\n\nHint: ${error.recoveryHint}` : ''}`
-      : error instanceof Error
-        ? error.message
-        : 'An unexpected error occurred.';
-
-  return {
-    content: [{ type: 'text' as const, text: message }],
-    isError: true,
-  };
-}
 
 function formatVerdict(verdict: string): string {
   switch (verdict) {
@@ -288,7 +274,7 @@ export function registerIndexingTools(server: McpServer, api: GscApiClient): voi
 
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -409,7 +395,7 @@ export function registerIndexingTools(server: McpServer, api: GscApiClient): voi
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -636,7 +622,7 @@ export function registerIndexingTools(server: McpServer, api: GscApiClient): voi
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );

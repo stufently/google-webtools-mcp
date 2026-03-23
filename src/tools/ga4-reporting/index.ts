@@ -2,25 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { Ga4ApiClient } from '../../api/ga4-client.js';
 import { createToolResponse, formatToolResponse } from '../schemas.js';
-import { GscError } from '../../errors/gsc-error.js';
+import { formatErrorForMcp } from '../../errors/error-handler.js';
 import type { Ga4ReportResponse } from '../../api/ga4-types.js';
-
-/**
- * Format an error into an MCP tool error response.
- */
-function errorResponse(error: unknown) {
-  const message =
-    error instanceof GscError
-      ? `${error.message}${error.recoveryHint ? `\n\nHint: ${error.recoveryHint}` : ''}`
-      : error instanceof Error
-        ? error.message
-        : 'An unexpected error occurred.';
-
-  return {
-    content: [{ type: 'text' as const, text: message }],
-    isError: true,
-  };
-}
 
 /**
  * Format a GA4 report response as a markdown table.
@@ -55,8 +38,8 @@ export function registerGa4ReportingTools(server: McpServer, ga4: Ga4ApiClient):
     'Run a GA4 analytics report with specified metrics, dimensions, and date range',
     {
       property_id: z.string().describe('GA4 property ID (e.g., "123456" or "properties/123456")'),
-      start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('Start date in YYYY-MM-DD format (or relative: "7daysAgo", "30daysAgo", "yesterday", "today")'),
-      end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('End date in YYYY-MM-DD format (or relative: "yesterday", "today")'),
+      start_date: z.string().regex(/^(\d{4}-\d{2}-\d{2}|\d+daysAgo|yesterday|today)$/).describe('Start date: YYYY-MM-DD or relative ("7daysAgo", "30daysAgo", "yesterday", "today")'),
+      end_date: z.string().regex(/^(\d{4}-\d{2}-\d{2}|\d+daysAgo|yesterday|today)$/).describe('End date: YYYY-MM-DD or relative ("yesterday", "today")'),
       metrics: z.array(z.string()).min(1).describe('Metrics to retrieve (e.g., ["activeUsers", "sessions", "screenPageViews"])'),
       dimensions: z.array(z.string()).optional().describe('Dimensions to group by (e.g., ["date", "country", "pagePath"])'),
       limit: z.number().min(1).max(100000).optional().default(100).describe('Maximum rows to return (1-100000, default 100)'),
@@ -94,7 +77,7 @@ export function registerGa4ReportingTools(server: McpServer, ga4: Ga4ApiClient):
         const text = formatToolResponse(createToolResponse(table, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -130,7 +113,7 @@ export function registerGa4ReportingTools(server: McpServer, ga4: Ga4ApiClient):
         const text = formatToolResponse(createToolResponse(table, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -186,7 +169,7 @@ export function registerGa4ReportingTools(server: McpServer, ga4: Ga4ApiClient):
         const text = formatToolResponse(createToolResponse(data, summary, [], limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );

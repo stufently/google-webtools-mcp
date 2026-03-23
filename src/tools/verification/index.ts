@@ -2,24 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { VerificationApiClient } from '../../api/verification-client.js';
 import { createToolResponse, formatToolResponse } from '../schemas.js';
-import { GscError } from '../../errors/gsc-error.js';
-
-/**
- * Format an error into an MCP tool error response.
- */
-function errorResponse(error: unknown) {
-  const message =
-    error instanceof GscError
-      ? `${error.message}${error.recoveryHint ? `\n\nHint: ${error.recoveryHint}` : ''}`
-      : error instanceof Error
-        ? error.message
-        : 'An unexpected error occurred.';
-
-  return {
-    content: [{ type: 'text' as const, text: message }],
-    isError: true,
-  };
-}
+import { formatErrorForMcp } from '../../errors/error-handler.js';
 
 /**
  * Get human-readable instructions for a verification method and token.
@@ -102,7 +85,7 @@ export function registerVerificationTools(server: McpServer, verification: Verif
         const text = formatToolResponse(createToolResponse(data, summary, instructions, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );
@@ -146,7 +129,7 @@ export function registerVerificationTools(server: McpServer, verification: Verif
         const text = formatToolResponse(createToolResponse(data, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };
       } catch (error) {
-        return errorResponse(error);
+        return formatErrorForMcp(error);
       }
     },
   );

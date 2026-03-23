@@ -90,7 +90,31 @@ export async function createAuthenticatedClient(): Promise<AuthResult> {
     errors.push(`Service account: ${message}`);
   }
 
-  // 2. OAuth (explicit env var)
+  // 2. Application Default Credentials (gcloud auth application-default login)
+  if (!process.env['GOOGLE_APPLICATION_CREDENTIALS']) {
+    try {
+      const adcScopes = [
+        'https://www.googleapis.com/auth/webmasters',
+        'https://www.googleapis.com/auth/analytics.readonly',
+        'https://www.googleapis.com/auth/analytics.edit',
+        'https://www.googleapis.com/auth/siteverification.verify_only',
+      ];
+      const adcAuth = new google.auth.GoogleAuth({ scopes: adcScopes });
+      const client = await adcAuth.getClient();
+      // ADC found and working
+      process.stderr.write('[auth] Authenticated via Application Default Credentials\n');
+      return {
+        auth: adcAuth,
+        method: 'service-account' as AuthMethod,
+        identity: 'gcloud-adc',
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`ADC: ${message}`);
+    }
+  }
+
+  // 3. OAuth (explicit env var)
   try {
     const oauthSecrets = loadOAuthCredentials();
     if (oauthSecrets) {
@@ -109,7 +133,7 @@ export async function createAuthenticatedClient(): Promise<AuthResult> {
     errors.push(`OAuth: ${message}`);
   }
 
-  // 3. Auto-detect ./credentials.json as OAuth client secrets
+  // 4. Auto-detect ./credentials.json as OAuth client secrets
   //    (Service account credentials.json is already handled in step 1 via
   //    loadServiceAccountCredentials, which checks ./credentials.json as a fallback.)
   try {
