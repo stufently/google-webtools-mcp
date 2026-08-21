@@ -28,9 +28,20 @@
     "model-context-protocol",
     "google-analytics",
     "ga4",
-    "site-verification"
+    "site-verification",
+    "url-inspection",
+    "mcp-server"
   ],
+  "author": "stufently",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stufently/google-webtools-mcp.git"
+  },
+  "homepage": "https://github.com/stufently/google-webtools-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/stufently/google-webtools-mcp/issues"
+  },
   "engines": {
     "node": ">=20.0.0"
   },

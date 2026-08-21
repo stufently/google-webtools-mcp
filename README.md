@@ -1,516 +1,334 @@
-# awesome-gsc-mcp
+# google-webtools-mcp
 
-**The most powerful Google Search Console MCP server -- analyzes data like an SEO professional with benchmarks, recommendations, and actionable insights.**
+An MCP server that gives an AI agent direct access to **Google Search Console** and **Google Analytics 4** — property management, search performance analysis, indexing checks, GA4 reporting, and site verification.
 
-[![npm version](https://img.shields.io/npm/v/awesome-gsc-mcp.svg)](https://www.npmjs.com/package/awesome-gsc-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-green.svg)](https://nodejs.org/)
 
 ---
 
-## Demo
+## What it does
 
-Just ask it to analyze your Google Search Console.
+The server exposes **39 tools** built on five Google APIs:
 
-<table>
-<tr><td>
-<img width="600" alt="Demo video" src="https://github.com/user-attachments/assets/0e726a66-4f9d-4e7a-b4dc-8956a9d0b535" />
-<br><p align="center"><sub>Ask Claude to analyze your Search Console data</sub></p>
-</td></tr>
-</table>
+| API | Used for |
+| --- | --- |
+| Search Console API (`webmasters` v3) | Properties, sitemaps, search analytics |
+| Search Console API (`searchconsole` v1) | URL Inspection |
+| Google Analytics Admin API (v1beta) | GA4 accounts, properties, data streams |
+| Google Analytics Data API (v1beta) | GA4 reports, realtime, metadata |
+| Site Verification API (v1) | Verification tokens, ownership verification |
 
-<table>
-<tr><td>
-<img width="600" alt="Demo output" src="https://github.com/user-attachments/assets/1ab4a543-a01b-42d9-b512-7b5bdc3e0de0" />
-<br><p align="center"><sub>Here's a sample result</sub></p>
-</td></tr>
-</table>
+Beyond raw API access, tool responses are post-processed by a local analysis layer:
+position-based CTR benchmarks, trend detection, query intent classification,
+opportunity scoring, and a recommendation engine. Most tools return a readable
+`Summary` and `Data` block rather than bare JSON, plus `Recommendations` and
+`Limitations` sections when there is something worth saying.
 
----
-
-## Features
-
-- **27 tools** across 7 categories covering every aspect of Google Search Console
-- **Smart analysis engine** with CTR benchmarks, trend detection, query intent classification, opportunity scoring, and a recommendation engine
-- **In-memory caching** for fast repeat queries
-- **Rate limiting** (20 req/s with burst of 30) to stay within API quotas
-- **Dual transport** -- stdio (default) and HTTP for flexible integration
-- **Auto-detecting authentication** -- service account, OAuth, or auto-detect from `credentials.json`
+Infrastructure: an in-memory TTL+LRU cache (search analytics 15 min when the
+range ends within the last 2 days and 1 h once it is older, sitemaps 15 min,
+site lists 30 min, URL inspections 1 h), a rate limiter (20 req/s, burst 30),
+and two transports — stdio (default) and HTTP.
 
 ---
 
-## Installation & Setup
+## Tools
 
-### 1. Get Google Credentials
+### Search Console properties (4)
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create [a new project](https://console.cloud.google.com/projectcreate) (or select an existing one)
+| Tool | When to use |
+| --- | --- |
+| `list_properties` | Starting point — see every GSC property you can access and your permission level on each. |
+| `get_property_details` | Check the type and permission level of one specific property. |
+| `add_property` | Register a new site in Search Console (verification is a separate step). |
+| `delete_property` | Drop a property from the authenticated account's Search Console site list. Historical data is not destroyed — the property can be added back. |
 
-<details>
-<summary><strong>3. Enable the Search Console API</strong></summary>
+### Sitemaps (4)
 
-Enable the [Search Console API](https://console.cloud.google.com/apis/library/searchconsole.googleapis.com)
+| Tool | When to use |
+| --- | --- |
+| `list_sitemaps` | See which sitemaps are submitted and whether Google reports errors or warnings. |
+| `get_sitemap_details` | Drill into one sitemap: URL counts by content type, last download time, error and warning counts. |
+| `submit_sitemap` | Submit a new sitemap after publishing or moving one. |
+| `delete_sitemap` | Withdraw a sitemap that is stale, duplicated, or returning errors. |
 
-<table><tr><td>
-<img width="600" alt="Enable Search Console API" src="https://github.com/user-attachments/assets/8644a873-d40c-4a3f-a8cf-c9f742866623" />
-</td></tr></table>
+### Search performance (6)
 
-</details>
+| Tool | When to use |
+| --- | --- |
+| `get_search_analytics` | The raw query — full control over dimensions, filters, search type, row limit, data state, aggregation. Use when the shaped tools below don't fit. |
+| `get_performance_summary` | "How are we doing?" — clicks, impressions, CTR, position with period-over-period comparison. |
+| `compare_periods` | Compare two explicit date ranges side by side (before/after a release, seasonal comparison). |
+| `get_top_queries` | Top queries by clicks, each scored against the CTR benchmark for its position. |
+| `get_top_pages` | Top pages by clicks with the same CTR analysis. |
+| `get_traffic_by_device` | Split traffic across desktop, mobile, and tablet — spot device-specific problems. |
 
-<details>
-<summary><strong>4. Create credentials</strong></summary>
+### Opportunities (5)
 
-- Go to **the project you created**
-- Click on Credentials in the sidebar
-- Create a service account, name it anything, click continue
+| Tool | When to use |
+| --- | --- |
+| `find_quick_wins` | "Where is money left on the table?" — pages ranking well but under-clicked, and pages sitting just off page 1. |
+| `find_declining_content` | Catch pages losing traffic while the decline is still recoverable — compares the current period against the previous one. |
+| `find_ctr_opportunities` | Find pages whose CTR is far below the benchmark for their position, with per-page fix suggestions. |
+| `find_content_gaps` | Queries landing on the wrong page, high-impression zero-click queries, topics that need a dedicated page. |
+| `find_what_to_build_next` | Content planning — groups queries by user intent (question, comparison, problem, buying) into topic clusters. |
 
-<table><tr><td>
-<img width="600" alt="Create service account" src="https://github.com/user-attachments/assets/2474e4a0-51d4-439d-92a2-f30591f6843c" />
-</td></tr></table>
+### Indexing (3)
 
-- Open the service account
+| Tool | When to use |
+| --- | --- |
+| `inspect_url` | Why is this one URL not showing up? Indexing status, mobile usability, rich results. |
+| `batch_inspect_urls` | Same check across a list of URLs (max 50 per call). |
+| `check_indexing_issues` | Audit your top traffic pages for indexing failures, canonical mismatches, and mobile problems. |
 
-<table><tr><td>
-<img width="600" alt="Open service account" src="https://github.com/user-attachments/assets/ccc56f8f-55f3-47c1-bb5d-bf74e2630aa5" />
-</td></tr></table>
+### Query analysis (3)
 
-- Click on the **Keys** tab
+| Tool | When to use |
+| --- | --- |
+| `analyze_query_landscape` | Understand the shape of your demand — intent mix, branded vs non-branded, position distribution. |
+| `find_new_queries` | Surface genuinely new and fast-rising queries by diffing this period against the previous one. |
+| `find_cannibalization` | Detect several of your own pages competing for the same query. |
 
-<table><tr><td>
-<img width="600" alt="Keys tab" src="https://github.com/user-attachments/assets/c517ed72-2f07-46bd-8893-f80ec367b9cd" />
-</td></tr></table>
+### Reports (2)
 
-- Click **Add Key > Create New Key** and select JSON. Save it somewhere familiar and try to rename it to something searchable (e.g. `awesome-gsc-service-account.json`)
+| Tool | When to use |
+| --- | --- |
+| `weekly_seo_report` | One-call weekly digest: trends, growers, decliners, quick wins, sitemap health, prioritized actions. |
+| `seo_health_check` | Overall A–F grade with sub-scores for traffic trend, CTR efficiency, position distribution, and sitemap health. |
 
-<table><tr><td>
-<img width="600" alt="Add key menu" src="https://github.com/user-attachments/assets/e1d91457-b770-4d3a-83e5-9f9b8d11199c" />
-</td></tr></table>
+### GA4 administration (7)
 
-<table><tr><td>
-<img width="600" alt="Download JSON key" src="https://github.com/user-attachments/assets/30d4cedf-82c5-4ab7-b624-f9ff3d0b92ce" />
-</td></tr></table>
+| Tool | When to use |
+| --- | --- |
+| `ga4_list_accounts` | See every GA4 account and property the credentials can reach. |
+| `ga4_list_properties` | List properties under one specific account. |
+| `ga4_get_property` | Inspect a property's configuration. |
+| `ga4_create_property` | Provision a new GA4 property. **Write operation.** |
+| `ga4_create_data_stream` | Create a web data stream and get back its measurement ID (for installing the tag). **Write operation.** |
+| `ga4_list_data_streams` | List a property's data streams. |
+| `ga4_get_data_stream` | Get one data stream's details, including its measurement ID. |
 
-</details>
+### GA4 reporting (3)
 
-<details>
-<summary><strong>5. Grant access</strong></summary>
+| Tool | When to use |
+| --- | --- |
+| `ga4_run_report` | Any GA4 report — pick metrics, dimensions, and a date range (absolute or relative like `28daysAgo`). |
+| `ga4_run_realtime_report` | Who is on the site right now. |
+| `ga4_get_metadata` | Discover which dimensions and metrics (including custom ones) a property supports — run this before guessing metric names. |
 
-- Open [Google Search Console](https://search.google.com/search-console/)
-- Go to [**Settings > Users and permissions**](https://search.google.com/search-console/users)
-- Add the service account email as an **Owner** or **Full**
+### Site verification (2)
 
-<table><tr><td>
-<img width="600" alt="Add service account to Search Console" src="https://github.com/user-attachments/assets/a2847ae9-e980-445c-a1ed-26d3c68b4d27" />
-</td></tr></table>
+| Tool | When to use |
+| --- | --- |
+| `gsc_get_verification_token` | Get the token to place, plus method-specific instructions. Methods: `FILE`, `DNS_TXT`, `META`, `ANALYTICS`. |
+| `gsc_verify_site` | Complete verification once the token is in place. |
 
-</details>
+---
 
-### 2. Configure Your Client
+## Setup
 
-You're almost done. Now we will just refrence the JSON file you downloaded in step 4 (Create credentials).
+### 1. Get Google credentials
 
-**Claude Code**
+Enable these APIs in your Google Cloud project: **Search Console API**,
+**Google Analytics Admin API**, **Google Analytics Data API**, and
+**Site Verification API**.
+
+The server requests these OAuth scopes:
+
+```
+https://www.googleapis.com/auth/webmasters
+https://www.googleapis.com/auth/analytics.readonly
+https://www.googleapis.com/auth/analytics.edit
+https://www.googleapis.com/auth/siteverification.verify_only
+```
+
+**Option A — Service account** (best for servers and automation):
+
+1. Google Cloud Console → IAM & Admin → Service Accounts → create one.
+2. Add a key → Create new key → JSON → download it.
+3. In Search Console → Settings → Users and permissions → add the service
+   account's email address.
+4. In GA4 → Admin → Property access management → add the same email.
+
+**Option B — OAuth 2.0** (best for personal, local use):
+
+1. Google Cloud Console → APIs & Services → Credentials → Create credentials →
+   OAuth client ID → **Desktop app**.
+2. Download the client secrets JSON.
+3. On first run, the server prints an authorization URL to stderr and starts a
+   temporary local callback listener. Open the URL, consent, done.
+4. The token is stored at `~/.google-webtools-mcp/token.json` and refreshed
+   automatically, so you authorize only once.
+
+### 2. Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to a service account JSON key file. |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | The service account key as an inline JSON string — for Docker and CI, where mounting a file is awkward. |
+| `GSC_OAUTH_CLIENT_SECRETS_FILE` | Path to an OAuth client secrets JSON file. |
+| `PORT` | HTTP transport port. Default `3000`. Only read with `--http`. |
+
+Authentication methods are tried in this order, and the first one that yields
+usable credentials wins. Note that an explicitly configured source that is
+broken is an error, not a fallback: if `GOOGLE_APPLICATION_CREDENTIALS` points
+at a missing or malformed file, startup fails there rather than quietly moving
+on to the next method.
+
+1. Service account — `GOOGLE_APPLICATION_CREDENTIALS`, then `GOOGLE_SERVICE_ACCOUNT_KEY`,
+   then `./credentials.json` if its `type` is `service_account`.
+2. Application Default Credentials (`gcloud auth application-default login`) —
+   skipped if `GOOGLE_APPLICATION_CREDENTIALS` is set.
+3. OAuth via `GSC_OAUTH_CLIENT_SECRETS_FILE`.
+4. `./credentials.json` in the working directory, if it looks like OAuth client
+   secrets (has an `installed` or `web` key).
+
+If none succeed, the server prints a setup guide and exits.
+
+### 3. Build
+
+The package is not published to a registry — clone and build it:
 
 ```bash
-claude mcp add awesome-gsc -- npx -y awesome-gsc-mcp \
-  -e GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+git clone https://github.com/stufently/google-webtools-mcp.git
+cd google-webtools-mcp
+npm install
+npm run build
 ```
 
-> **Tip:** Can't find your key file? Run this to locate it:
-> ```bash
-> claude -p "find the path of most recently downloaded .json file in ~/Desktop, ~/Documents, and ~/Downloads"
-> ```
+This produces `dist/cli.js`, which is what the MCP client runs.
 
-<details>
-<summary><strong>Claude Desktop</strong></summary>
+---
 
-Paste this whole block into Terminal, hit Enter, then restart Claude Desktop.
+## Connecting it
+
+Replace `/path/to/google-webtools-mcp` with your actual clone location, and the
+credentials path with your own key file.
+
+### Claude Code
 
 ```bash
-cat > ~/Library/Application\ Support/Claude/claude_desktop_config.json << 'EOF'
-{
-  "mcpServers": {
-    "awesome-gsc": {
-      "command": "npx",
-      "args": ["-y", "awesome-gsc-mcp"],
-      "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "{Path to your json file}"
-      }
-    }
-  }
-}
-EOF
+claude mcp add google-webtools \
+  --env GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json \
+  -- node /path/to/google-webtools-mcp/dist/cli.js
 ```
 
-Here is an example:
-```
-"GOOGLE_APPLICATION_CREDENTIALS": "/Users/Magdoub/Desktop/mobilevitals-service.json"
-```
+### Claude Desktop
 
-</details>
-
-<details>
-<summary><strong>Cursor</strong></summary>
-
-Config file: `.cursor/mcp.json` in your project root (or `~/.cursor/mcp.json` globally)
+`claude_desktop_config.json` — macOS:
+`~/Library/Application Support/Claude/claude_desktop_config.json`,
+Windows: `%APPDATA%\Claude\claude_desktop_config.json`.
 
 ```json
 {
   "mcpServers": {
-    "awesome-gsc": {
-      "command": "npx",
-      "args": ["-y", "awesome-gsc-mcp"],
+    "google-webtools": {
+      "command": "node",
+      "args": ["/path/to/google-webtools-mcp/dist/cli.js"],
       "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/service-account-key.json"
+        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/service-account.json"
       }
     }
   }
 }
 ```
 
-</details>
+### Cursor
 
-<details>
-<summary><strong>Windsurf</strong></summary>
-
-Config file: `~/.codeium/windsurf/mcp_config.json`
+`.cursor/mcp.json` in your project, or `~/.cursor/mcp.json` globally:
 
 ```json
 {
   "mcpServers": {
-    "awesome-gsc": {
-      "command": "npx",
-      "args": ["-y", "awesome-gsc-mcp"],
+    "google-webtools": {
+      "command": "node",
+      "args": ["/path/to/google-webtools-mcp/dist/cli.js"],
       "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/service-account-key.json"
+        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/service-account.json"
       }
     }
   }
 }
 ```
 
-</details>
+For OAuth instead of a service account, swap the `env` block for
+`{"GSC_OAUTH_CLIENT_SECRETS_FILE": "/path/to/client-secrets.json"}`.
 
-<details>
-<summary><strong>Troubleshooting</strong></summary>
-
-| Error | Fix |
-| --- | --- |
-| `401 Token has been expired or revoked` | Delete `~/.awesome-gsc-mcp/token.json` and re-authorize |
-| `403 User does not have sufficient permission` | Add the service account email as **Owner** in Search Console > [Settings > Users and permissions](https://search.google.com/search-console/users) |
-| `403 Forbidden` with OAuth | Add yourself as a test user in Google Cloud Console > OAuth consent screen, or publish the app |
-| `Could not load the default credentials` | Check that `GOOGLE_APPLICATION_CREDENTIALS` points to a valid key file |
-
-</details>
-
----
-
-## Tool Reference
-
-<details>
-<summary><strong>All 27 tools organized by category</strong></summary>
-
-### Property Management (4 tools)
-
-| Tool | Description |
-| --- | --- |
-| `list_properties` | List all Search Console properties accessible to the authenticated account |
-| `get_property_details` | Get detailed information about a specific property |
-| `add_property` | Add a new site to Search Console |
-| `delete_property` | Remove a site from Search Console |
-
-### Performance & Traffic (6 tools)
-
-| Tool | Description |
-| --- | --- |
-| `get_search_analytics` | Query raw search analytics data with flexible parameters (dimensions, filters, date ranges) |
-| `get_performance_summary` | High-level performance overview with automatic period-over-period comparison |
-| `compare_periods` | Compare search performance between two custom date periods side by side |
-| `get_top_queries` | Top search queries by clicks with CTR benchmark analysis |
-| `get_top_pages` | Top pages by clicks with CTR analysis and recommendations |
-| `get_traffic_by_device` | Traffic breakdown by device type (desktop, mobile, tablet) with mobile-first insights |
-
-### Smart Opportunity Analysis (5 tools)
-
-| Tool | Description |
-| --- | --- |
-| `find_quick_wins` | Find "money on the table" SEO opportunities: CTR gaps, almost-page-1 queries, quick position gains |
-| `find_declining_content` | Find pages and queries losing traffic with root cause diagnosis |
-| `find_ctr_opportunities` | Pages with CTR significantly below benchmarks, with position-specific recommendations |
-| `find_content_gaps` | Content creation opportunities: homepage-ranking queries, zero-click queries, new emerging queries |
-| `find_what_to_build_next` | Intent-based content planning: questions, comparisons, problems, buying signals grouped by topic cluster |
-
-### URL Inspection & Indexing (3 tools)
-
-| Tool | Description |
-| --- | --- |
-| `inspect_url` | Inspect a URL for indexing status, crawl info, mobile usability, and rich results |
-| `batch_inspect_urls` | Inspect multiple URLs in one call |
-| `check_indexing_issues` | Identify common indexing problems across your site |
-
-### Sitemap Management (4 tools)
-
-| Tool | Description |
-| --- | --- |
-| `list_sitemaps` | List all sitemaps submitted for a property |
-| `get_sitemap_details` | Get detailed information about a specific sitemap |
-| `submit_sitemap` | Submit a new sitemap to Search Console |
-| `delete_sitemap` | Remove a sitemap from Search Console |
-
-### Query Intelligence (3 tools)
-
-| Tool | Description |
-| --- | --- |
-| `analyze_query_landscape` | Intent distribution, branded vs non-branded split, position bucket analysis |
-| `find_new_queries` | Discover emerging and truly new queries between periods |
-| `find_cannibalization` | Find multiple pages competing for the same query |
-
-### Composite Reports (2 tools)
-
-| Tool | Description |
-| --- | --- |
-| `weekly_seo_report` | Full weekly SEO performance report with trends, top movers, and recommendations |
-| `seo_health_check` | Comprehensive health check with a letter grade and prioritized action items |
-
-</details>
-
----
-
-## Use Cases & Example Prompts
-
-Once connected to Claude, try these natural language prompts. Copy any of them as-is.
-
-### Getting Started
-
-```
-List all my Search Console properties
-```
-```
-How is example.com doing this month?
-```
-```
-Give me a performance summary for the last 3 months
-```
-
-### Traffic & Performance Analysis
-
-```
-What are my top 20 queries by clicks?
-```
-```
-Show me traffic breakdown by device
-```
-```
-Compare this month's performance vs last month
-```
-```
-What are my top pages for mobile traffic?
-```
-```
-Show me search performance for image search
-```
-
-### Finding Quick Wins & Opportunities
-
-```
-Find quick win SEO opportunities for my site
-```
-```
-Which pages have CTR below benchmarks?
-```
-```
-Find pages that are almost on page 1 of Google
-```
-```
-What queries could I get more clicks from with better titles?
-```
-
-### Content Strategy & Planning
-
-```
-What content should I create next?
-```
-```
-What questions are people searching that I should answer?
-```
-```
-Find content gaps — queries ranking on my homepage that need dedicated pages
-```
-```
-Show me new and emerging queries in the last month
-```
-```
-What comparison and "best of" queries is my site appearing for?
-```
-
-### Diagnosing Problems
-
-```
-Which pages are losing traffic and why?
-```
-```
-Find keyword cannibalization issues
-```
-```
-Are there any indexing issues on my top pages?
-```
-```
-Inspect the URL example.com/blog/my-post for indexing problems
-```
-```
-Which of my pages are not indexed?
-```
-
-### Sitemaps & Indexing
-
-```
-List all my submitted sitemaps
-```
-```
-Submit my new sitemap at example.com/sitemap.xml
-```
-```
-Check indexing status for my top 50 pages
-```
-```
-Batch inspect these URLs: [url1, url2, url3]
-```
-
-### Reporting & Health Checks
-
-```
-Generate a weekly SEO report
-```
-```
-Run a full SEO health check and give me a grade
-```
-```
-What are the top 5 things I should fix on my site right now?
-```
-
----
-
-## Analysis Engine
-
-<details>
-<summary><strong>Built-in SEO analysis beyond raw data</strong></summary>
-
-The server goes beyond raw data with a built-in analysis engine:
-
-- **CTR Benchmarks** -- Compares your click-through rates against industry-average benchmarks by position. Flags pages that underperform and estimates how many additional clicks you could gain.
-- **Trend Detection** -- Analyzes time-series data to detect upward, downward, or stable trends across your queries and pages.
-- **Query Classification** -- Classifies queries by user intent (informational, investigational, transactional, navigational, problem-solving) and sub-type (how-to, comparison, review, error/fix, and more).
-- **Opportunity Scoring** -- Scores every opportunity by traffic impact potential, factoring in impressions, CTR gap, position proximity, and volume.
-- **Recommendation Engine** -- Generates specific, prioritized recommendations based on the data patterns found in your property.
-
-</details>
-
----
-
-## API Limitations
-
-<details>
-<summary><strong>What's not available through the API</strong></summary>
-
-The Google Search Console API has known limitations. The following data is **not available** through the API and therefore not provided by this server:
-
-- **Core Web Vitals** -- Page experience and performance metrics
-- **Crawl Stats** -- Crawl requests, response times, host status
-- **Manual Actions** -- Penalties and security issues
-- **Links Report** -- Internal and external link data
-- **Removals** -- URL removal requests
-- **Rich Results** -- Detailed rich result reports (basic info is available via URL Inspection)
-
-These reports are only available in the Search Console web interface.
-
-</details>
-
----
-
-## HTTP Transport
-
-<details>
-<summary><strong>Using HTTP instead of stdio</strong></summary>
-
-For environments that prefer HTTP over stdio, start the server with the `--http` flag:
+### HTTP transport
 
 ```bash
-npx awesome-gsc-mcp --http
+node dist/cli.js --http           # listens on :3000
+PORT=8080 node dist/cli.js --http # or pick a port
 ```
 
-The server listens on port 3000 by default. Override with the `PORT` environment variable:
+Endpoints: `POST /mcp` for MCP traffic, `GET /health` for a liveness check.
+
+### Docker
 
 ```bash
-PORT=8080 npx awesome-gsc-mcp --http
+docker compose up --build
 ```
 
-Endpoints:
-
-| Path | Method | Description |
-| --- | --- | --- |
-| `/mcp` | POST | MCP protocol endpoint (Streamable HTTP transport) |
-| `/health` | GET | Health check -- returns `{"status":"ok","auth":"..."}` |
-
-</details>
+The bundled `docker-compose.yml` mounts `./credentials` read-only and keeps the
+OAuth token in a named volume so it survives container rebuilds. Build `dist/`
+first — the image copies it rather than compiling.
 
 ---
 
-## FAQ
+## Common prompts
 
-<details>
-<summary><strong>Common questions</strong></summary>
+Once connected, talk to the agent in plain language:
 
-**How often does GSC data update?**
-Search Console data typically has a 2–3 day delay. For settled, final numbers pass `dataState: 'final'` in your search analytics queries. The most recent 2–3 days may still change as Google processes data.
+- *"List my Search Console properties, then give me a weekly SEO report for the main one."*
+- *"Find quick wins for https://example.com/ — pages that are close to page 1 or getting impressions but no clicks."*
+- *"Which pages lost the most traffic in the last 28 days compared to the previous period, and why?"*
+- *"Check whether these 12 URLs are indexed, and tell me what's wrong with the ones that aren't."*
+- *"Create a GA4 property for example.com with a web data stream, then give me the measurement ID to install."*
+- *"Am I cannibalizing myself anywhere? Show queries where more than one of my pages ranks."*
 
-**What are the rate limits?**
-The server has built-in rate limiting at 20 requests/second with a burst allowance of 30. The Google Search Console API also has its own daily quota — check your [Google Cloud Console quotas page](https://console.cloud.google.com/apis/api/searchconsole.googleapis.com/quotas) if you hit limits.
+---
 
-**Can I work with multiple sites?**
-Yes. Use `list_properties` to see all accessible sites, then specify the `siteUrl` parameter in any tool to target a specific property.
+## Limitations
 
-**How do domain properties work?**
-Domain properties use the `sc-domain:example.com` format. This covers all subdomains and protocols. URL-prefix properties use the full URL like `https://www.example.com/`.
-
-**What data is NOT available through the API?**
-See the [API Limitations](#api-limitations) section. Core Web Vitals, crawl stats, links, manual actions, and removals are only available in the Search Console web interface.
-
-</details>
+- **Search Console data lag.** Search analytics data is typically 2–3 days
+  behind. Use `dataState: "final"` when you need only finalized numbers.
+- **16 months of history, maximum.** That is a Search Console API limit, not a
+  server limit.
+- **Row sampling and caps.** Search analytics is capped at 25,000 rows per
+  request; GA4 reports at 100,000. Large GA4 date ranges may be sampled by Google.
+- **`batch_inspect_urls` handles 50 URLs per call**, and the URL Inspection API
+  has its own daily quota per property.
+- **Site verification is not one-click.** The server hands you a token and
+  instructions; you still have to place the file, DNS record, or meta tag
+  yourself before calling `gsc_verify_site`.
+- **Domain properties can't use FILE or META verification** — use `DNS_TXT`.
+- **No Google Ads, PageSpeed Insights, CrUX, or Indexing API.** This server
+  covers Search Console, GA4, and Site Verification only.
+- **Cache is in-memory and per-process.** It resets whenever the server restarts
+  and is not shared between instances.
+- **Write operations are real.** `add_property`, `delete_property`,
+  `submit_sitemap`, `delete_sitemap`, `ga4_create_property`,
+  `ga4_create_data_stream`, and `gsc_verify_site` change live configuration, and
+  there is no dry-run mode. The Search Console ones are reversible by re-adding
+  the property or re-submitting the sitemap; a created GA4 property or data
+  stream is not something this server can remove.
 
 ---
 
 ## Development
 
-<details>
-<summary><strong>Build, test, and run locally</strong></summary>
-
 ```bash
-# Install dependencies
 npm install
-
-# Build
-npm run build
-
-# Run tests
-npm test
-
-# Development mode (watch + rebuild)
-npm run dev
-
-# Type check
-npm run lint
-
-# Start locally (stdio)
-npm start
-
-# Start locally (HTTP)
-npm start -- --http
+npm run build      # bundle with tsup
+npm run dev        # rebuild on change
+npm test           # vitest
+npm run lint       # tsc --noEmit
 ```
 
-</details>
+Requires Node.js 20 or newer.
 
 ---
 
 ## License
 
-[MIT](LICENSE)
+MIT — see [LICENSE](LICENSE).
