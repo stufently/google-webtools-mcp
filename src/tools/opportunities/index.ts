@@ -66,28 +66,49 @@ function scoreOpportunity(opts: {
 }
 
 /**
+ * Makes an arbitrary string safe to drop into a markdown table cell.
+ *
+ * Search queries and URLs are attacker-influenced input: anyone can make a page
+ * rank for a query they chose. An unescaped `|` silently corrupts the table, and
+ * a newline plus `##` lets crafted text pose as our own headings to whatever
+ * model reads this output. Collapse the whitespace, neutralise the delimiters.
+ */
+export function escapeTableCell(value: string): string {
+  return value
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\\/g, '\\\\')
+    .replace(/\|/g, '\\|')
+    .replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'))
+    .trim();
+}
+
+/**
  * Truncates a URL for display in markdown tables.
  */
 function truncateUrl(url: string, maxLen: number = 60): string {
-  if (url.length <= maxLen) return url;
-  try {
-    const parsed = new URL(url);
-    const path = parsed.pathname + parsed.search;
-    if (path.length > maxLen - 3) {
-      return path.slice(0, maxLen - 3) + '...';
+  const shorten = (value: string): string =>
+    value.length <= maxLen ? value : value.slice(0, maxLen - 3) + '...';
+
+  let display = url;
+  if (url.length > maxLen) {
+    try {
+      const parsed = new URL(url);
+      const path = parsed.pathname + parsed.search;
+      display = shorten(path);
+    } catch {
+      display = shorten(url);
     }
-    return path;
-  } catch {
-    return url.slice(0, maxLen - 3) + '...';
   }
+
+  return escapeTableCell(display);
 }
 
 /**
  * Truncates a query string for display in markdown tables.
  */
 function truncateQuery(query: string, maxLen: number = 50): string {
-  if (query.length <= maxLen) return query;
-  return query.slice(0, maxLen - 3) + '...';
+  const display = query.length <= maxLen ? query : query.slice(0, maxLen - 3) + '...';
+  return escapeTableCell(display);
 }
 
 /**
@@ -121,6 +142,116 @@ function buildRequest(opts: {
   return req;
 }
 
+/**
+ * A single dimension value (a page URL or a query string) whose clicks fell
+ * between the previous and the current period.
+ */
+export interface DecliningItem {
+  /** The dimension value: a page URL or a query string. */
+  key: string;
+  currentClicks: number;
+  previousClicks: number;
+  clickChange: number;
+  clickChangePct: number;
+  currentImpressions: number;
+  previousImpressions: number;
+  currentPosition: number;
+  previousPosition: number;
+  /** Positive means the average position got worse. */
+  positionChange: number;
+  /** Clicks lost versus the previous period. */
+  trafficImpact: number;
+  /**
+   * True when the value had traffic in the previous period but is absent from
+   * the current result set entirely. Current-period metrics are then unknown
+   * rather than zero, so position movement is not meaningful for these.
+   */
+  missingFromCurrent: boolean;
+}
+
+/**
+ * Renders the current-position cell, which is unknown for values that vanished
+ * from the current period rather than being zero.
+ */
+function currentPositionCell(item: DecliningItem): string {
+  return item.missingFromCurrent ? 'gone' : formatPosition(item.currentPosition);
+}
+
+/**
+ * Renders the position-change cell. Positive means worse.
+ */
+function positionChangeCell(item: DecliningItem): string {
+  if (item.missingFromCurrent) return 'n/a';
+  if (item.positionChange > 0) return `+${formatPosition(item.positionChange)} (worse)`;
+  if (item.positionChange < 0) return `${formatPosition(item.positionChange)} (better)`;
+  return '0';
+}
+
+/**
+ * Compares two single-dimension result sets and returns the values that lost
+ * a meaningful share of their clicks, worst traffic impact first.
+ *
+ * Dimension-agnostic: pass page rows to get declining pages, query rows to get
+ * declining queries.
+ *
+ * @param minClicksInPrevious - Ignore values that were already too small to matter.
+ * @param declineThresholdPct - How steep the drop must be to count, as a negative percentage.
+ */
+export function findDecliningItems(
+  currentRows: readonly SearchAnalyticsRow[],
+  previousRows: readonly SearchAnalyticsRow[],
+  minClicksInPrevious: number,
+  declineThresholdPct: number = -20,
+): DecliningItem[] {
+  const currentByKey = new Map<string, SearchAnalyticsRow>();
+  for (const row of currentRows) {
+    currentByKey.set(key(row, 0), row);
+  }
+
+  const declining: DecliningItem[] = [];
+
+  // Iterate the PREVIOUS period, not the current one. A page or query that lost
+  // all of its traffic disappears from the current result set entirely, and
+  // walking the current rows would silently skip exactly those total losses --
+  // the worst declines of all.
+  for (const previous of previousRows) {
+    const itemKey = key(previous, 0);
+
+    // Values too small to matter before are noise now.
+    if (previous.clicks < minClicksInPrevious) continue;
+
+    const current = currentByKey.get(itemKey);
+    const currentClicks = current?.clicks ?? 0;
+
+    const clickChangePct = previous.clicks > 0
+      ? ((currentClicks - previous.clicks) / previous.clicks) * 100
+      : 0;
+
+    if (clickChangePct >= declineThresholdPct) continue;
+
+    declining.push({
+      key: itemKey,
+      currentClicks,
+      previousClicks: previous.clicks,
+      clickChange: currentClicks - previous.clicks,
+      clickChangePct,
+      currentImpressions: current?.impressions ?? 0,
+      previousImpressions: previous.impressions,
+      currentPosition: current?.position ?? 0,
+      previousPosition: previous.position,
+      // Unknown rather than zero when the value vanished, so claiming a
+      // position move would be inventing data.
+      positionChange: current ? current.position - previous.position : 0,
+      trafficImpact: previous.clicks - currentClicks,
+      missingFromCurrent: current === undefined,
+    });
+  }
+
+  // Most lost clicks first.
+  declining.sort((a, b) => b.trafficImpact - a.trafficImpact);
+  return declining;
+}
+
 // ---------------------------------------------------------------------------
 // Tool registration
 // ---------------------------------------------------------------------------
@@ -132,7 +263,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
   // =========================================================================
   server.tool(
     'find_quick_wins',
-    'Find "money on the table" SEO opportunities: pages ranking well but underperforming on clicks, pages almost on page 1, and positions where a small push yields big gains',
+    'Find "money on the table" SEO opportunities as query/page pairs: those ranking well but underperforming on clicks, those almost on page 1, and positions where a small push yields big gains',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
@@ -301,20 +432,27 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
   // =========================================================================
   server.tool(
     'find_declining_content',
-    'Find pages and queries losing traffic: compares current vs previous period to surface content that needs attention before it drops further',
+    'Find pages and queries losing traffic: compares the current period against the previous one, reporting declining pages and declining queries as two separate rankings, to surface content that needs attention before it drops further',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
       searchType: searchTypeSchema.optional(),
-      minClicksInPrevious: z.number().min(0).default(10).describe('Minimum clicks in the previous period to consider a page'),
+      minClicksInPrevious: z.number().min(0).default(10).describe('Minimum clicks in the previous period to consider a page or query'),
     },
     async ({ siteUrl, period, searchType, minClicksInPrevious }) => {
       try {
         const currentRange = resolveDateRange(period as DatePeriod);
         const previousRange = getPreviousPeriod(currentRange.startDate, currentRange.endDate);
 
-        // Fetch current and previous period data in parallel
-        const [currentResponse, previousResponse] = await Promise.all([
+        // Fetch both periods for both dimensions in parallel. Pages and queries
+        // decline independently: a page can look flat overall while the
+        // individual queries feeding it collapse, so both are needed.
+        const [
+          currentPageResponse,
+          previousPageResponse,
+          currentQueryResponse,
+          previousQueryResponse,
+        ] = await Promise.all([
           api.querySearchAnalytics(buildRequest({
             siteUrl,
             ...currentRange,
@@ -327,80 +465,56 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
             dimensions: ['page'],
             searchType,
           })),
+          api.querySearchAnalytics(buildRequest({
+            siteUrl,
+            ...currentRange,
+            dimensions: ['query'],
+            searchType,
+          })),
+          api.querySearchAnalytics(buildRequest({
+            siteUrl,
+            ...previousRange,
+            dimensions: ['query'],
+            searchType,
+          })),
         ]);
 
-        // Index previous period by page URL
-        const previousByPage = new Map<string, SearchAnalyticsRow>();
-        for (const row of previousResponse.rows) {
-          previousByPage.set(key(row, 0), row);
-        }
+        // Both dimensions go through the same decline detection (>20% click loss).
+        const decliningPages = findDecliningItems(
+          currentPageResponse.rows,
+          previousPageResponse.rows,
+          minClicksInPrevious,
+        );
+        const decliningQueries = findDecliningItems(
+          currentQueryResponse.rows,
+          previousQueryResponse.rows,
+          minClicksInPrevious,
+        );
 
-        // Find declining pages
-        interface DecliningPage {
-          page: string;
-          currentClicks: number;
-          previousClicks: number;
-          clickChange: number;
-          clickChangePct: number;
-          currentImpressions: number;
-          previousImpressions: number;
-          currentPosition: number;
-          previousPosition: number;
-          positionChange: number;
-          trafficImpact: number;
-        }
-
-        const decliningPages: DecliningPage[] = [];
-
-        for (const current of currentResponse.rows) {
-          const page = key(current, 0);
-          const previous = previousByPage.get(page);
-
-          if (!previous || previous.clicks < minClicksInPrevious) continue;
-
-          const clickChangePct = previous.clicks > 0
-            ? ((current.clicks - previous.clicks) / previous.clicks) * 100
-            : 0;
-
-          // Only include pages with >20% decline
-          if (clickChangePct >= -20) continue;
-
-          const lostClicks = previous.clicks - current.clicks;
-
-          decliningPages.push({
-            page,
-            currentClicks: current.clicks,
-            previousClicks: previous.clicks,
-            clickChange: current.clicks - previous.clicks,
-            clickChangePct,
-            currentImpressions: current.impressions,
-            previousImpressions: previous.impressions,
-            currentPosition: current.position,
-            previousPosition: previous.position,
-            positionChange: current.position - previous.position, // positive = worse
-            trafficImpact: lostClicks,
-          });
-        }
-
-        // Sort by traffic impact (most lost clicks first)
-        decliningPages.sort((a, b) => b.trafficImpact - a.trafficImpact);
-
-        if (decliningPages.length === 0) {
+        if (decliningPages.length === 0 && decliningQueries.length === 0) {
           return {
             content: [{
               type: 'text' as const,
-              text: `No significantly declining pages found for **${siteUrl}**. All pages with at least ${minClicksInPrevious} clicks in the previous period maintained or grew their traffic. This is a good sign.`,
+              text: `No significantly declining pages or queries found for **${siteUrl}**. Everything with at least ${minClicksInPrevious} clicks in the previous period maintained or grew its traffic. This is a good sign.`,
             }],
           };
         }
 
         const totalLostClicks = decliningPages.reduce((sum, p) => sum + p.trafficImpact, 0);
+        const totalLostQueryClicks = decliningQueries.reduce((sum, q) => sum + q.trafficImpact, 0);
         const topDecliners = decliningPages.slice(0, 30);
+        const topDecliningQueries = decliningQueries.slice(0, 30);
 
-        // Categorize declines
-        const positionDrops = decliningPages.filter((p) => p.positionChange > 2);
-        const ctrDrops = decliningPages.filter((p) => p.positionChange <= 2 && p.positionChange >= -2);
-        const impressionDrops = decliningPages.filter((p) => p.currentImpressions < p.previousImpressions * 0.7);
+        // Categorize declines. Values that vanished from the current period have
+        // no current position or impressions, so they get their own bucket
+        // instead of polluting the position/CTR ones with fabricated zeros.
+        const droppedOut = decliningPages.filter((p) => p.missingFromCurrent);
+        const stillPresent = decliningPages.filter((p) => !p.missingFromCurrent);
+        const positionDrops = stillPresent.filter((p) => p.positionChange > 2);
+        const ctrDrops = stillPresent.filter((p) => p.positionChange <= 2 && p.positionChange >= -2);
+        const impressionDrops = stillPresent.filter((p) => p.currentImpressions < p.previousImpressions * 0.7);
+        const hasDiagnosis =
+          positionDrops.length > 0 || ctrDrops.length > 0 || impressionDrops.length > 0;
 
         // Build markdown
         const parts: string[] = [];
@@ -410,61 +524,109 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
         parts.push(`**Min clicks filter:** ${minClicksInPrevious}\n`);
 
         parts.push(`## Summary\n`);
-        parts.push(`**${formatNumber(decliningPages.length)} pages are declining**, representing **${formatNumber(totalLostClicks)} lost clicks** vs the previous period.\n`);
-        parts.push(`| Decline Type | Count | Likely Cause |`);
-        parts.push(`| --- | ---: | --- |`);
-        parts.push(`| Position dropped (>2 spots) | ${positionDrops.length} | Algorithm update, new competitors, or content freshness |`);
-        parts.push(`| CTR dropped (position stable) | ${ctrDrops.length} | SERP feature changes, competitor snippet improvements |`);
-        parts.push(`| Impressions dropped (>30%) | ${impressionDrops.length} | Seasonal decline, keyword cannibalization, or indexing issues |`);
-        parts.push('');
+        if (decliningPages.length > 0) {
+          parts.push(`**${formatNumber(decliningPages.length)} pages are declining**, representing **${formatNumber(totalLostClicks)} lost clicks** vs the previous period.`);
+        } else {
+          parts.push(`**No declining pages** -- every page held or grew, but individual queries did not.`);
+        }
+        if (decliningQueries.length > 0) {
+          parts.push(`**${formatNumber(decliningQueries.length)} queries are declining**, representing **${formatNumber(totalLostQueryClicks)} lost clicks**.\n`);
+        } else {
+          parts.push(`**No declining queries** above the same thresholds.\n`);
+        }
+
+        if (decliningPages.length > 0) {
+          parts.push(`| Decline Type | Count | Likely Cause |`);
+          parts.push(`| --- | ---: | --- |`);
+          parts.push(`| Position dropped (>2 spots) | ${positionDrops.length} | Algorithm update, new competitors, or content freshness |`);
+          parts.push(`| CTR dropped (position stable) | ${ctrDrops.length} | SERP feature changes, competitor snippet improvements |`);
+          parts.push(`| Impressions dropped (>30%) | ${impressionDrops.length} | Seasonal decline, keyword cannibalization, or indexing issues |`);
+          parts.push(`| Gone from results entirely | ${droppedOut.length} | Deindexed, removed, or fell below the reporting threshold |`);
+          parts.push('');
+        }
+
+        if (decliningPages.length > 0 && decliningQueries.length > 0) {
+          parts.push(`_Page and query counts are independent views of the same traffic loss, not additive totals: one declining page usually shows up as several declining queries._\n`);
+        }
 
         // ── Declining pages table ──
-        parts.push(`## Top Declining Pages\n`);
-        parts.push(`| Page | Prev Clicks | Curr Clicks | Change | Prev Pos | Curr Pos | Pos Change | Lost Clicks |`);
-        parts.push(`| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`);
-        for (const p of topDecliners) {
-          const posChangeStr = p.positionChange > 0
-            ? `+${formatPosition(p.positionChange)} (worse)`
-            : p.positionChange < 0
-              ? `${formatPosition(p.positionChange)} (better)`
-              : '0';
-          parts.push(`| ${truncateUrl(p.page)} | ${formatNumber(p.previousClicks)} | ${formatNumber(p.currentClicks)} | ${p.clickChangePct.toFixed(1)}% | ${formatPosition(p.previousPosition)} | ${formatPosition(p.currentPosition)} | ${posChangeStr} | ${formatNumber(p.trafficImpact)} |`);
+        if (topDecliners.length > 0) {
+          parts.push(`## Top Declining Pages\n`);
+          parts.push(`| Page | Prev Clicks | Curr Clicks | Change | Prev Pos | Curr Pos | Pos Change | Lost Clicks |`);
+          parts.push(`| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`);
+          for (const p of topDecliners) {
+            parts.push(`| ${truncateUrl(p.key)} | ${formatNumber(p.previousClicks)} | ${formatNumber(p.currentClicks)} | ${p.clickChangePct.toFixed(1)}% | ${formatPosition(p.previousPosition)} | ${currentPositionCell(p)} | ${positionChangeCell(p)} | ${formatNumber(p.trafficImpact)} |`);
+          }
+          parts.push('');
+          if (droppedOut.length > 0) {
+            parts.push(`_"gone" means the page returned no data at all this period -- deindexed, removed, or below Google's reporting threshold. Current position is unknown, not zero._\n`);
+          }
         }
-        parts.push('');
+
+        // ── Declining queries table ──
+        if (topDecliningQueries.length > 0) {
+          parts.push(`## Top Declining Queries\n`);
+          parts.push(
+            decliningPages.length > 0
+              ? `Queries losing clicks. A query can collapse while its landing page looks stable, so treat this as a separate signal from the page table above.\n`
+              : `Queries losing clicks. No page declined enough to be listed, so the loss is spread thinly across pages rather than concentrated in one.\n`,
+          );
+          parts.push(`| Query | Prev Clicks | Curr Clicks | Change | Prev Pos | Curr Pos | Pos Change | Lost Clicks |`);
+          parts.push(`| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`);
+          for (const q of topDecliningQueries) {
+            parts.push(`| ${truncateQuery(q.key)} | ${formatNumber(q.previousClicks)} | ${formatNumber(q.currentClicks)} | ${q.clickChangePct.toFixed(1)}% | ${formatPosition(q.previousPosition)} | ${currentPositionCell(q)} | ${positionChangeCell(q)} | ${formatNumber(q.trafficImpact)} |`);
+          }
+          parts.push('');
+        }
 
         // ── Diagnosis & actions ──
-        parts.push(`## Diagnosis Guide\n`);
-        parts.push(`### Pages with Position Drops\n`);
-        if (positionDrops.length > 0) {
-          parts.push(`These ${positionDrops.length} pages lost ranking positions. Investigate:\n`);
-          parts.push(`1. **Content freshness** -- Is the content outdated? Update statistics, dates, and examples.`);
-          parts.push(`2. **Competitor analysis** -- Check who ranks above you now. What do they cover that you don't?`);
-          parts.push(`3. **Technical issues** -- Verify the page is indexed, loads fast, and has no crawl errors.`);
-          parts.push(`4. **Link profile** -- Have you lost any important backlinks recently?\n`);
-        }
+        // Every subsection below is page-based and needs a non-empty category,
+        // so skip the whole guide when there is nothing to put under it.
+        if (hasDiagnosis) {
+          parts.push(`## Diagnosis Guide\n`);
 
-        parts.push(`### Pages with CTR Drops (Stable Position)\n`);
-        if (ctrDrops.length > 0) {
-          parts.push(`These ${ctrDrops.length} pages maintained position but get fewer clicks:\n`);
-          parts.push(`1. **SERP feature changes** -- New featured snippets, knowledge panels, or "People Also Ask" may be stealing clicks.`);
-          parts.push(`2. **Title/description quality** -- A/B test title tags with more compelling language.`);
-          parts.push(`3. **Structured data** -- Add or improve schema markup to earn rich snippets.\n`);
-        }
+          if (positionDrops.length > 0) {
+            parts.push(`### Pages with Position Drops\n`);
+            parts.push(`These ${positionDrops.length} pages lost ranking positions. Investigate:\n`);
+            parts.push(`1. **Content freshness** -- Is the content outdated? Update statistics, dates, and examples.`);
+            parts.push(`2. **Competitor analysis** -- Check who ranks above you now. What do they cover that you don't?`);
+            parts.push(`3. **Technical issues** -- Verify the page is indexed, loads fast, and has no crawl errors.`);
+            parts.push(`4. **Link profile** -- Have you lost any important backlinks recently?\n`);
+          }
 
-        parts.push(`### Pages with Impression Drops\n`);
-        if (impressionDrops.length > 0) {
-          parts.push(`These ${impressionDrops.length} pages are appearing less often in search results:\n`);
-          parts.push(`1. **Seasonality** -- Some topics naturally fluctuate. Check Google Trends for the keywords.`);
-          parts.push(`2. **Cannibalization** -- Another page on your site may be competing for the same queries.`);
-          parts.push(`3. **Indexing issues** -- Use the URL Inspection tool to verify the page is indexed.\n`);
+          if (ctrDrops.length > 0) {
+            parts.push(`### Pages with CTR Drops (Stable Position)\n`);
+            parts.push(`These ${ctrDrops.length} pages maintained position but get fewer clicks:\n`);
+            parts.push(`1. **SERP feature changes** -- New featured snippets, knowledge panels, or "People Also Ask" may be stealing clicks.`);
+            parts.push(`2. **Title/description quality** -- A/B test title tags with more compelling language.`);
+            parts.push(`3. **Structured data** -- Add or improve schema markup to earn rich snippets.\n`);
+          }
+
+          if (impressionDrops.length > 0) {
+            parts.push(`### Pages with Impression Drops\n`);
+            parts.push(`These ${impressionDrops.length} pages are appearing less often in search results:\n`);
+            parts.push(`1. **Seasonality** -- Some topics naturally fluctuate. Check Google Trends for the keywords.`);
+            parts.push(`2. **Cannibalization** -- Another page on your site may be competing for the same queries.`);
+            parts.push(`3. **Indexing issues** -- Use the URL Inspection tool to verify the page is indexed.\n`);
+          }
         }
 
         // ── Recommendations ──
         parts.push(`## Recommendations\n`);
-        parts.push(`1. **Prioritize by traffic impact** -- Focus on pages that lost the most clicks first.`);
-        parts.push(`2. **Content refresh** -- Update the top declining pages with fresh data, new sections, and improved formatting.`);
-        parts.push(`3. **Monitor recovery** -- After making changes, track these pages for 2-4 weeks to see if traffic recovers.`);
-        parts.push(`4. **Check for patterns** -- If many pages declined at the same time, a Google algorithm update may be the cause.`);
+        const recommendations: string[] = [];
+        recommendations.push(`**Prioritize by traffic impact** -- Work down the tables from the largest click loss.`);
+        if (decliningPages.length > 0) {
+          recommendations.push(`**Content refresh** -- Update the top declining pages with fresh data, new sections, and improved formatting.`);
+          recommendations.push(`**Monitor recovery** -- After making changes, track these pages for 2-4 weeks to see if traffic recovers.`);
+          recommendations.push(`**Check for patterns** -- If many pages declined at the same time, a Google algorithm update may be the cause.`);
+        }
+        if (droppedOut.length > 0) {
+          recommendations.push(`**Investigate the ${droppedOut.length} pages that disappeared first** -- Run \`inspect_url\` on them: a page returning no data at all is usually deindexed or unreachable, which is a bigger problem than a ranking slip.`);
+        }
+        if (decliningQueries.length > 0) {
+          recommendations.push(`**Cross-reference queries against pages** -- A declining query whose landing page held steady usually means lost intent coverage or a new SERP feature, not a sitewide problem.`);
+        }
+        recommendations.forEach((rec, i) => parts.push(`${i + 1}. ${rec}`));
         parts.push('');
 
         // ── Limitations ──
@@ -473,7 +635,10 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
           parts.push(`- ${limitation}`);
         }
         parts.push(`- Period-over-period comparison assumes equal-length periods. Seasonal effects are not adjusted for.`);
-        parts.push(`- Pages that did not exist in the previous period are excluded from this analysis.`);
+        parts.push(`- Pages and queries with no data in the previous period are excluded -- this finds declines, not new arrivals.`);
+        parts.push(`- Results are capped at 25,000 rows per period, ordered by clicks. A value marked "gone" may have fallen out of that cap rather than out of Google.`);
+        parts.push(`- Page and query declines are computed independently and overlap. Do not add the two "lost clicks" totals together.`);
+        parts.push(`- Google truncates low-volume ("anonymized") queries, so query-level totals will not reconcile exactly with page-level totals.`);
 
         return { content: [{ type: 'text' as const, text: parts.join('\n') }] };
       } catch (error) {

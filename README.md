@@ -67,8 +67,8 @@ and two transports — stdio (default) and HTTP.
 
 | Tool | When to use |
 | --- | --- |
-| `find_quick_wins` | "Where is money left on the table?" — pages ranking well but under-clicked, and pages sitting just off page 1. |
-| `find_declining_content` | Catch pages losing traffic while the decline is still recoverable — compares the current period against the previous one. |
+| `find_quick_wins` | "Where is money left on the table?" — query/page pairs ranking well but under-clicked, and those sitting just off page 1. |
+| `find_declining_content` | Catch traffic loss while it is still recoverable — compares the current period against the previous one and reports declining pages and declining queries as two separate rankings. |
 | `find_ctr_opportunities` | Find pages whose CTR is far below the benchmark for their position, with per-page fix suggestions. |
 | `find_content_gaps` | Queries landing on the wrong page, high-impression zero-click queries, topics that need a dedicated page. |
 | `find_what_to_build_next` | Content planning — groups queries by user intent (question, comparison, problem, buying) into topic clusters. |
