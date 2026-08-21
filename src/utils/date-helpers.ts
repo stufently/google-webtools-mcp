@@ -22,6 +22,50 @@ export interface DateRange {
   endDate: string;
 }
 
+/**
+ * How many days back from today the last day of *complete* Search Console data
+ * is assumed to be when the real boundary cannot be determined.
+ *
+ * Search Console keeps collecting and processing data for the most recent days:
+ * with `dataState: "final"` those days are simply absent, and with
+ * `dataState: "all"` they are present but still growing. Either way a window
+ * that runs up to yesterday ends in a partial tail, which reads as a traffic
+ * collapse when it is compared against a fully settled earlier window.
+ *
+ * The lag is not a constant — it drifts, and it differs between properties —
+ * so this is only the fallback. Prefer passing the boundary observed from the
+ * API itself (see `resolveLatestCompleteDate` in `api/data-freshness.ts`).
+ */
+export const GSC_DATA_LAG_DAYS = 3;
+
+export interface DateRangeOptions {
+  /**
+   * Last date (`YYYY-MM-DD`) known to hold complete data. The range ends here.
+   * Normally obtained by probing the API rather than assumed.
+   */
+  latestCompleteDate?: string;
+  /**
+   * Fallback lag in days, used only when `latestCompleteDate` is absent.
+   * Defaults to {@link GSC_DATA_LAG_DAYS}.
+   */
+  lagDays?: number;
+}
+
+/**
+ * The assumed last day of complete data: today minus `lagDays`.
+ *
+ * Exposed so callers (and tests) can reproduce the fallback anchor without
+ * duplicating the arithmetic.
+ */
+export function getFallbackLatestCompleteDate(
+  lagDays: number = GSC_DATA_LAG_DAYS,
+  now: Date = new Date(),
+): string {
+  const anchor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  anchor.setDate(anchor.getDate() - lagDays);
+  return formatDate(anchor);
+}
+
 // ---------------------------------------------------------------------------
 // Core helpers
 // ---------------------------------------------------------------------------
@@ -95,18 +139,51 @@ export function isDateFresh(dateStr: string, daysThreshold: number): boolean {
 /**
  * Build a `{ startDate, endDate }` range for a named period.
  *
- * `endDate` is always **yesterday** (GSC data is typically delayed by ~2 days,
- * but yesterday is the latest date the API accepts for queries).
+ * `endDate` is the last day of **complete** data, not yesterday: pass
+ * `latestCompleteDate` (observed from the API) or let it fall back to
+ * today minus {@link GSC_DATA_LAG_DAYS}.
+ *
+ * Ending the window at yesterday used to pull Search Console's still-settling
+ * tail into the current period while the comparison period was fully settled,
+ * manufacturing declines that never happened — most visibly on `last7d`, where
+ * three unsettled days are nearly half the window.
+ *
+ * Because {@link getPreviousPeriod} derives the comparison window from this
+ * range, moving the anchor keeps both windows the same length and shifts them
+ * together.
  */
-export function getDateRange(period: DatePeriod): DateRange {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+/**
+ * Go back `months` calendar months, clamping to the last day of the target
+ * month instead of spilling into the next one.
+ *
+ * `Date.setMonth` alone turns May 31 minus three months into March 2, which
+ * silently shortens the window on month ends.
+ */
+function subtractMonths(date: Date, months: number): Date {
+  const day = date.getDate();
+  const anchor = new Date(date.getFullYear(), date.getMonth(), 1);
+  anchor.setMonth(anchor.getMonth() - months);
 
-  // End date = yesterday.
-  const end = new Date(today);
-  end.setDate(end.getDate() - 1);
+  const lastDayOfTargetMonth = new Date(
+    anchor.getFullYear(),
+    anchor.getMonth() + 1,
+    0,
+  ).getDate();
 
-  const start = new Date(end);
+  anchor.setDate(Math.min(day, lastDayOfTargetMonth));
+  return anchor;
+}
+
+export function getDateRange(
+  period: DatePeriod,
+  options: DateRangeOptions = {},
+): DateRange {
+  const end = parseDate(
+    options.latestCompleteDate ??
+      getFallbackLatestCompleteDate(options.lagDays ?? GSC_DATA_LAG_DAYS),
+  );
+
+  let start = new Date(end);
 
   switch (period) {
     case "last7d":
@@ -116,16 +193,16 @@ export function getDateRange(period: DatePeriod): DateRange {
       start.setDate(start.getDate() - 27); // 28 days inclusive
       break;
     case "last3m":
-      start.setMonth(start.getMonth() - 3);
+      start = subtractMonths(start, 3);
       break;
     case "last6m":
-      start.setMonth(start.getMonth() - 6);
+      start = subtractMonths(start, 6);
       break;
     case "last12m":
-      start.setMonth(start.getMonth() - 12);
+      start = subtractMonths(start, 12);
       break;
     case "last16m":
-      start.setMonth(start.getMonth() - 16);
+      start = subtractMonths(start, 16);
       break;
   }
 
@@ -149,16 +226,20 @@ export function getPreviousPeriod(
   const start = parseDate(startDate);
   const end = parseDate(endDate);
 
-  const spanMs = end.getTime() - start.getTime();
-  if (spanMs < 0) {
+  if (end.getTime() < start.getTime()) {
     throw new RangeError("startDate must be before endDate");
   }
 
-  // Length in days (inclusive range → +1 day offset).
-  const lengthMs = spanMs + 86_400_000;
+  // Calendar-day arithmetic, not fixed 24-hour blocks: in a timezone with
+  // daylight saving a "day" is occasionally 23 or 25 hours long, and adding
+  // milliseconds would land the boundary on the wrong date.
+  const lengthDays = daysBetween(startDate, endDate) + 1;
 
-  const prevEnd = new Date(start.getTime() - 86_400_000);
-  const prevStart = new Date(prevEnd.getTime() - lengthMs + 86_400_000);
+  const prevEnd = new Date(start);
+  prevEnd.setDate(prevEnd.getDate() - 1);
+
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - (lengthDays - 1));
 
   return {
     startDate: formatDate(prevStart),

@@ -17,7 +17,8 @@ import {
   getIntentDistribution,
   type QueryIntent,
 } from '../../analysis/query-classifier.js';
-import { getDateRange, getPreviousPeriod } from '../../utils/date-helpers.js';
+import { getPreviousPeriod } from '../../utils/date-helpers.js';
+import { resolveReportingRange } from '../../api/data-freshness.js';
 import {
   formatNumber,
   formatPercent,
@@ -53,7 +54,7 @@ function extractBrandName(siteUrl: string): string {
 const LIMITATIONS = [
   'Query data is sampled by Google and may not represent 100% of traffic.',
   'GSC limits query-level data to the top queries by impressions; long-tail queries may be absent.',
-  'Data freshness lags by approximately 2-3 days.',
+  'Windows end at the last day Search Console reports as complete (usually 2-3 days back, asked of the API rather than assumed); the newest days are excluded.',
   'Intent classification is pattern-based and may not capture nuanced or ambiguous queries.',
 ];
 
@@ -81,7 +82,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
     },
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
-        const { startDate, endDate } = getDateRange(period);
+        const { startDate, endDate } = await resolveReportingRange(api, siteUrl, period, { searchType: searchType ?? 'web' });
 
         const response = await api.querySearchAnalytics({
           siteUrl,
@@ -298,7 +299,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
     },
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
-        const currentRange = getDateRange(period);
+        const currentRange = await resolveReportingRange(api, siteUrl, period, { searchType: searchType ?? 'web' });
         const previousRange = getPreviousPeriod(
           currentRange.startDate,
           currentRange.endDate,
@@ -526,7 +527,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
     },
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
-        const { startDate, endDate } = getDateRange(period);
+        const { startDate, endDate } = await resolveReportingRange(api, siteUrl, period, { searchType: searchType ?? 'web' });
 
         const response = await api.querySearchAnalytics({
           siteUrl,

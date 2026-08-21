@@ -38,7 +38,7 @@ export const dimensionFilterSchema = z.object({
 });
 
 export const dataStateSchema = z.enum(['all', 'final']).default('all').describe(
-  '"final" = only finalized data (3+ days old), "all" = includes fresh data'
+  '"final" = finalized data only (the API\'s own default; the newest days are simply absent until they settle), "all" = also includes the freshest days, whose numbers may still change'
 );
 
 export const rowLimitSchema = z.number().min(1).max(25000).default(1000).describe(

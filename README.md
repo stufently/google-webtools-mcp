@@ -291,7 +291,13 @@ Once connected, talk to the agent in plain language:
 ## Limitations
 
 - **Search Console data lag.** Search analytics data is typically 2–3 days
-  behind. Use `dataState: "final"` when you need only finalized numbers.
+  behind, and the lag drifts. Every named period (`last7d`, `last28d`, …) is
+  therefore anchored to the last day the API reports as complete — read from
+  the `first_incomplete_date` the API returns for a `dataState: "all"` query
+  grouped by date — rather than to yesterday, so the newest
+  days are excluded on purpose and period-over-period comparisons are not
+  distorted by a half-collected tail. `get_search_analytics` still takes an
+  explicit `dataState` and explicit dates when you want the fresh edge.
 - **16 months of history, maximum.** That is a Search Console API limit, not a
   server limit.
 - **Row sampling and caps.** Search analytics is capped at 25,000 rows per

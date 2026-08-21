@@ -31,9 +31,23 @@ export interface SearchAnalyticsRow {
   position: number;
 }
 
+/**
+ * Freshness metadata the API attaches to a response.
+ *
+ * `first_incomplete_date` is populated only when the request asked for
+ * `dataState: "all"` and grouped by date; it names the first day that is still
+ * being collected, so the day before it is the last complete one.
+ */
+export interface SearchAnalyticsMetadata {
+  first_incomplete_date?: string;
+  first_incomplete_hour?: string;
+}
+
 export interface SearchAnalyticsResponse {
   rows: SearchAnalyticsRow[];
   responseAggregationType: string;
+  /** Present only when the API returned it — see {@link SearchAnalyticsMetadata}. */
+  metadata?: SearchAnalyticsMetadata;
 }
 
 // SiteInfo, SitemapInfo, InspectionResult types too

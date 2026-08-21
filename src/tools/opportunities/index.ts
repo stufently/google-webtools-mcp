@@ -13,7 +13,8 @@ import type { SearchAnalyticsRow, SearchAnalyticsRequest } from '../../api/types
 import { getExpectedCtr, analyzeCtr } from '../../analysis/ctr-benchmarks.js';
 import { detectTrend, type TrendPoint } from '../../analysis/trend-detector.js';
 import { classifyQuery, classifyQueries } from '../../analysis/query-classifier.js';
-import { getDateRange, getPreviousPeriod, type DatePeriod } from '../../utils/date-helpers.js';
+import { getPreviousPeriod, type DatePeriod, type DateRange } from '../../utils/date-helpers.js';
+import { resolveReportingRange } from '../../api/data-freshness.js';
 import { formatNumber, formatPercent, formatPosition, formatChange } from '../../utils/formatting.js';
 import { siteUrlSchema, periodSchema, searchTypeSchema } from '../schemas.js';
 import { formatErrorForMcp } from '../../errors/error-handler.js';
@@ -31,7 +32,7 @@ function key(row: SearchAnalyticsRow, index: number): string {
 
 const SHARED_LIMITATIONS = [
   'Analysis based on sampled data from Google Search Console. Actual traffic may vary.',
-  'GSC data is typically delayed by 2-3 days. Very recent changes may not be reflected.',
+  'Windows end at the last day Search Console reports as complete (usually 2-3 days back, asked of the API rather than assumed), so the newest days are deliberately excluded and very recent changes are not reflected yet.',
   'Position values are averages and may not reflect the actual position for every query.',
 ];
 
@@ -112,10 +113,23 @@ function truncateQuery(query: string, maxLen: number = 50): string {
 }
 
 /**
- * Resolves a period string to a date range.
+ * Resolves a period string to a date range that ends at the last day of
+ * complete Search Console data for this property.
+ *
+ * The end of the window is asked of the API rather than assumed, because the
+ * publishing lag drifts. Anchoring here means the comparison window built by
+ * `getPreviousPeriod` shifts by exactly the same amount, so the two periods
+ * stay equal in length.
  */
-function resolveDateRange(period: DatePeriod) {
-  return getDateRange(period);
+async function resolveDateRange(
+  api: GscApiClient,
+  siteUrl: string,
+  period: DatePeriod,
+  searchType?: string,
+): Promise<DateRange> {
+  return resolveReportingRange(api, siteUrl, period, {
+    searchType: searchType as SearchAnalyticsRequest['searchType'],
+  });
 }
 
 /**
@@ -135,6 +149,10 @@ function buildRequest(opts: {
     endDate: opts.endDate,
     dimensions: opts.dimensions,
     rowLimit: opts.rowLimit ?? 25000,
+    // Explicit, though "final" is also the API default: these windows end at
+    // the last complete day, so asking for fresh data would only invite
+    // partial rows if that default ever changes.
+    dataState: 'final',
   };
   if (opts.searchType) {
     req.searchType = opts.searchType as SearchAnalyticsRequest['searchType'];
@@ -272,7 +290,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
     },
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
-        const dateRange = resolveDateRange(period as DatePeriod);
+        const dateRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);
         const request = buildRequest({
           siteUrl,
           ...dateRange,
@@ -441,7 +459,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
     },
     async ({ siteUrl, period, searchType, minClicksInPrevious }) => {
       try {
-        const currentRange = resolveDateRange(period as DatePeriod);
+        const currentRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);
         const previousRange = getPreviousPeriod(currentRange.startDate, currentRange.endDate);
 
         // Fetch both periods for both dimensions in parallel. Pages and queries
@@ -661,7 +679,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
     },
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
-        const dateRange = resolveDateRange(period as DatePeriod);
+        const dateRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);
         const request = buildRequest({
           siteUrl,
           ...dateRange,
@@ -848,7 +866,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
     },
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
-        const currentRange = resolveDateRange(period as DatePeriod);
+        const currentRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);
         const previousRange = getPreviousPeriod(currentRange.startDate, currentRange.endDate);
 
         // Fetch current query+page data and previous query data in parallel
@@ -1147,7 +1165,7 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
     },
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
-        const dateRange = resolveDateRange(period as DatePeriod);
+        const dateRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);
         const request = buildRequest({
           siteUrl,
           ...dateRange,

@@ -27,7 +27,8 @@ import { scoreOpportunity } from '../../analysis/opportunity-scorer.js';
 import { generateRecommendations } from '../../analysis/recommendation-engine.js';
 
 // Utility modules
-import { getDateRange, getPreviousPeriod, formatDate, daysBetween } from '../../utils/date-helpers.js';
+import { getPreviousPeriod, formatDate, daysBetween } from '../../utils/date-helpers.js';
+import { resolveReportingRange } from '../../api/data-freshness.js';
 import { formatNumber, formatPercent, formatPosition, formatChange } from '../../utils/formatting.js';
 
 // ---------------------------------------------------------------------------
@@ -140,7 +141,7 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
         const sections: string[] = [];
 
         // Date ranges
-        const currentRange = getDateRange('last7d');
+        const currentRange = await resolveReportingRange(api, siteUrl, 'last7d', { searchType: type });
         const previousRange = getPreviousPeriod(currentRange.startDate, currentRange.endDate);
 
         // ── Header ──────────────────────────────────────────────────────
@@ -606,7 +607,7 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
         const sections: string[] = [];
         const issues: Array<{ severity: 'critical' | 'high' | 'medium' | 'low'; message: string }> = [];
 
-        const dateRange28d = getDateRange('last28d');
+        const dateRange28d = await resolveReportingRange(api, siteUrl, 'last28d', { searchType: type });
 
         // ── Score 1: Traffic Trend (0-100, weight: 30%) ─────────────────
         let trafficScore = 50; // default if section fails

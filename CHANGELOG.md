@@ -21,6 +21,54 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- **Reporting windows no longer end inside Search Console's unsettled tail.**
+  Every named period (`last7d`, `last28d`, …) ended at *yesterday*, but Search
+  Console keeps collecting the most recent days: with `dataState: "final"` —
+  the API's own default, which these tools were relying on implicitly — those
+  days are simply absent. The current window therefore ran on a partially
+  delivered tail while the comparison window was fully settled, and a property
+  with dead-flat traffic could be reported as collapsing. On `last7d` the
+  missing tail was two to three days of seven, roughly a third of the window;
+  a regression test now pins that exact scenario.
+  - Windows end at the last day the API itself reports as complete. A probe
+    (`dimensions: ['date']`, `dataState: 'all'`, 14-day lookback) reads
+    `metadata.first_incomplete_date` — the day Search Console says it is still
+    collecting — and anchors at the day before it, so a lag that drifts to four
+    or five days is followed rather than assumed away. The three-day constant
+    survives only as a fallback for when the API reports no boundary or the
+    probe fails; the probe never throws. The boundary is resolved for the same
+    `searchType` the data will be read with.
+  - Deliberately *not* "the newest date present in a `final` response": Search
+    Console omits days with no traffic, so on a quiet property that reads a gap
+    in traffic as a gap in publishing and drags every window back to the last
+    day that happened to get a click.
+  - That metadata is now surfaced by the API layer (`SearchAnalyticsResponse.metadata`),
+    read defensively because the `googleapis` typings for webmasters v3 predate
+    the field, and carried through the pagination helpers.
+  - The anchor moves the current and previous windows together, so they stay
+    equal in length — fixing the tail without introducing an unfair comparison.
+  - The five opportunity tools, the query tools, the performance tools and both
+    report tools all shared the same `getDateRange`, so all of them shift by
+    the same 2–3 days. Numbers for a given period will not match figures
+    produced before this change: the window is the same length but ends
+    earlier. Explicit-date calls (`get_search_analytics`) are untouched.
+  - Opportunity queries now send `dataState: 'final'` explicitly instead of
+    inheriting it, and the tool `limitations` and README wording no longer
+    describe the lag as something the caller must mentally correct for. The
+    tools that take explicit dates (`get_search_analytics`, `compare_periods`)
+    say what is true for *them* — that dates inside the unsettled range return
+    partial numbers — rather than claiming a trimming they do not do.
+
+- **Month-length windows no longer overshoot on month ends.** `getDateRange`
+  moved the start date with `Date.setMonth`, which turns May 31 minus three
+  months into March 2 and silently shortens the window; the start is now
+  clamped to the last day of the target month (February 29 in a leap year).
+
+- **`getPreviousPeriod` counts calendar days, not 24-hour blocks.** Subtracting
+  fixed millisecond spans lands on the wrong date in a timezone where a day is
+  occasionally 23 or 25 hours long, which would offset the comparison window by
+  a day across a daylight-saving change.
+
 - **`find_declining_content` now actually returns declining queries.** Its tool
   description promised "pages and queries losing traffic", but both API calls
   requested `dimensions: ['page']` — the query side was never fetched, so the

@@ -16,7 +16,8 @@ import {
   createToolResponse,
   formatToolResponse,
 } from '../schemas.js';
-import { getDateRange, getPreviousPeriod } from '../../utils/date-helpers.js';
+import { getPreviousPeriod } from '../../utils/date-helpers.js';
+import { resolveReportingRange } from '../../api/data-freshness.js';
 import {
   formatNumber,
   formatPercent,
@@ -159,7 +160,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         }
 
         const limitations = [
-          'GSC data may be delayed by 2-3 days.',
+          'Search Console is still collecting the most recent 2-3 days; dates you pass in that range return partial numbers unless you set dataState to "final", which omits them entirely.',
           'Position and CTR are averages and may not reflect individual query performance.',
         ];
 
@@ -184,7 +185,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
     },
     async (params) => {
       try {
-        const currentRange = getDateRange(params.period);
+        const currentRange = await resolveReportingRange(api, params.siteUrl, params.period, { searchType: params.searchType });
         const previousRange = getPreviousPeriod(currentRange.startDate, currentRange.endDate);
 
         // Fetch both periods in parallel (no dimensions = totals only)
@@ -258,7 +259,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
 
         const limitations = [
           'Totals are aggregated across all queries and pages.',
-          'GSC data may be delayed by 2-3 days; recent data may still update.',
+          'Windows end at the last day Search Console reports as complete (usually 2-3 days back); the newest days are excluded.',
           'Position is an average and can be skewed by low-impression queries.',
         ];
 
@@ -329,7 +330,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
           const summary = `Comparison of ${params.siteUrl} between two periods. Period 2 clicks changed by ${formatChange(r2.clicks, r1.clicks)} relative to Period 1.`;
 
           const text = formatToolResponse(createToolResponse(table, summary, [], [
-            'GSC data may be delayed by 2-3 days.',
+            'Search Console is still collecting the most recent 2-3 days; dates you pass in that range return partial numbers unless you set dataState to "final", which omits them entirely.',
             'Periods of different lengths may produce misleading comparisons.',
           ]));
           return { content: [{ type: 'text' as const, text }] };
@@ -400,7 +401,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         }
 
         const text = formatToolResponse(createToolResponse(table, summary, recommendations, [
-          'GSC data may be delayed by 2-3 days.',
+          'Search Console is still collecting the most recent 2-3 days; dates you pass in that range return partial numbers unless you set dataState to "final", which omits them entirely.',
           'Periods of different lengths may produce misleading comparisons.',
           'Results capped at 50 rows sorted by absolute click change.',
         ]));
@@ -428,7 +429,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
     },
     async (params) => {
       try {
-        const dateRange = getDateRange(params.period);
+        const dateRange = await resolveReportingRange(api, params.siteUrl, params.period, { searchType: params.searchType });
 
         // Build dimension filters
         const filters: DimensionFilter[] = [];
@@ -505,7 +506,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         }
 
         const limitations = [
-          'GSC data may be delayed by 2-3 days.',
+          'Windows end at the last day Search Console reports as complete (usually 2-3 days back); the newest days are excluded.',
           'CTR benchmarks are industry averages and may vary by query type, SERP features, and industry.',
           'Anonymous or rare queries may be grouped or omitted by Google.',
         ];
@@ -534,7 +535,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
     },
     async (params) => {
       try {
-        const dateRange = getDateRange(params.period);
+        const dateRange = await resolveReportingRange(api, params.siteUrl, params.period, { searchType: params.searchType });
 
         // Build dimension filters
         const filters: DimensionFilter[] = [];
@@ -615,7 +616,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         }
 
         const limitations = [
-          'GSC data may be delayed by 2-3 days.',
+          'Windows end at the last day Search Console reports as complete (usually 2-3 days back); the newest days are excluded.',
           'Page URLs are reported as they appear in the index and may differ from canonical URLs.',
           'CTR benchmarks are industry averages and vary by SERP features present.',
         ];
@@ -641,7 +642,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
     },
     async (params) => {
       try {
-        const dateRange = getDateRange(params.period);
+        const dateRange = await resolveReportingRange(api, params.siteUrl, params.period, { searchType: params.searchType });
 
         const response = await api.querySearchAnalytics({
           siteUrl: params.siteUrl,
@@ -741,7 +742,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
         }
 
         const limitations = [
-          'GSC data may be delayed by 2-3 days.',
+          'Windows end at the last day Search Console reports as complete (usually 2-3 days back); the newest days are excluded.',
           'Device categorization is determined by Google and may not perfectly match your analytics tool.',
           'Position is averaged across all queries per device and may not reflect individual query performance.',
         ];

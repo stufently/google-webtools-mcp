@@ -13,6 +13,7 @@ import type { RateLimiter } from '../utils/rate-limiter.js';
 import { handleApiError } from '../errors/error-handler.js';
 import { isDateFresh } from '../utils/date-helpers.js';
 import type {
+  SearchAnalyticsMetadata,
   SearchAnalyticsRequest,
   SearchAnalyticsRow,
   SearchAnalyticsResponse,
@@ -65,7 +66,31 @@ async function executeSingleQuery(
   return {
     rows,
     responseAggregationType: data.responseAggregationType ?? 'auto',
+    ...(extractMetadata(data) ?? {}),
   };
+}
+
+/**
+ * Pull the freshness metadata out of a raw response.
+ *
+ * The googleapis typings for webmasters v3 predate this field, so it arrives
+ * untyped; it is read defensively and dropped unless it looks like what the
+ * documentation describes.
+ */
+function extractMetadata(
+  data: unknown,
+): { metadata: SearchAnalyticsMetadata } | undefined {
+  const raw = (data as { metadata?: unknown } | null)?.metadata;
+  if (raw === null || typeof raw !== 'object') return undefined;
+
+  const { first_incomplete_date: date, first_incomplete_hour: hour } =
+    raw as Record<string, unknown>;
+
+  const metadata: SearchAnalyticsMetadata = {};
+  if (typeof date === 'string') metadata.first_incomplete_date = date;
+  if (typeof hour === 'string') metadata.first_incomplete_hour = hour;
+
+  return Object.keys(metadata).length > 0 ? { metadata } : undefined;
 }
 
 /**
@@ -125,6 +150,7 @@ export async function querySearchAnalytics(
     const allRows: SearchAnalyticsRow[] = [];
     let startRow = request.startRow ?? 0;
     let responseAggregationType = 'auto';
+    let metadata: SearchAnalyticsMetadata | undefined;
 
     while (allRows.length < desiredLimit) {
       const pageSize = Math.min(API_MAX_ROW_LIMIT, desiredLimit - allRows.length);
@@ -136,6 +162,7 @@ export async function querySearchAnalytics(
       );
 
       responseAggregationType = page.responseAggregationType;
+      metadata ??= page.metadata;
       allRows.push(...page.rows);
 
       // If the API returned fewer rows than requested, we have reached the end.
@@ -149,6 +176,7 @@ export async function querySearchAnalytics(
     const result: SearchAnalyticsResponse = {
       rows: allRows,
       responseAggregationType,
+      ...(metadata !== undefined ? { metadata } : {}),
     };
 
     cache.set(cacheKey, result, chooseTtl(request));
@@ -185,6 +213,7 @@ export async function querySearchAnalyticsAllRows(
     const allRows: SearchAnalyticsRow[] = [];
     let startRow = request.startRow ?? 0;
     let responseAggregationType = 'auto';
+    let metadata: SearchAnalyticsMetadata | undefined;
 
     while (true) {
       const page = await executeSingleQuery(
@@ -194,6 +223,7 @@ export async function querySearchAnalyticsAllRows(
       );
 
       responseAggregationType = page.responseAggregationType;
+      metadata ??= page.metadata;
       allRows.push(...page.rows);
 
       // An empty or partial page signals the end of data.
@@ -207,6 +237,7 @@ export async function querySearchAnalyticsAllRows(
     const result: SearchAnalyticsResponse = {
       rows: allRows,
       responseAggregationType,
+      ...(metadata !== undefined ? { metadata } : {}),
     };
 
     cache.set(cacheKey, result, chooseTtl(request));
