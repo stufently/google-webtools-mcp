@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Continuous integration (`.github/workflows/ci.yml`).** The repository had no
+  workflows at all: the 162 unit tests only ever ran when someone remembered to
+  run them by hand, so a broken push looked exactly like a healthy one. Every
+  push and pull request against `main` now runs install → lint (`tsc --noEmit`,
+  which is also the typecheck) → test → build on Node 20, 22 and 24. Node 20 is
+  past EOL (April 2026) but is still what the project promises — `engines` says
+  `>=20`, tsup targets `node20` and the `Dockerfile` runs `node:20-slim` — so it
+  is verified until that floor is raised rather than quietly left untested; 22
+  and 24 are the supported LTS lines. No ESLint or Prettier exists in this project,
+  so there is no separate lint or format-check step, and no Docker workflow was
+  added — the image is a local convenience build (its `Dockerfile` copies a
+  pre-built `dist/`) and is not published to any registry.
+
 ### Fixed
 
 - **`find_declining_content` now actually returns declining queries.** Its tool

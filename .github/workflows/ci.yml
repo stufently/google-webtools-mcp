@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint, Test, Build (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is what the project actually promises: `engines` says >=20, tsup
+        # targets node20 and the Dockerfile runs node:20-slim. It is past EOL,
+        # so it is tested until that floor is raised rather than dropped here.
+        # 22 and 24 are the currently supported LTS lines.
+        node-version: ["20", "22", "24"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # Nothing here pushes, and the npm scripts below run PR-authored code.
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `lint` is `tsc --noEmit`, so this is the typecheck too. There is no
+      # ESLint or Prettier in this project — no lint/format steps beyond it.
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
