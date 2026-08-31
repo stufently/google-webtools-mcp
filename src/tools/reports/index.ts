@@ -436,8 +436,8 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
               if (!sm.contents) return total;
               return total + sm.contents.reduce((sum, c) => sum + parseInt(c.submitted ?? '0', 10), 0);
             }, 0);
-            const errorCount = sitemaps.filter((s) => s.errors).length;
-            const warningCount = sitemaps.filter((s) => s.warnings).length;
+            const errorCount = sitemaps.filter((s) => (s.errors ?? 0) > 0).length;
+            const warningCount = sitemaps.filter((s) => (s.warnings ?? 0) > 0).length;
             const pendingCount = sitemaps.filter((s) => s.isPending).length;
 
             sections.push('');
@@ -452,14 +452,14 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
             if (errorCount > 0) {
               sections.push('');
               sections.push('**Sitemaps with errors:**');
-              for (const sm of sitemaps.filter((s) => s.errors)) {
+              for (const sm of sitemaps.filter((s) => (s.errors ?? 0) > 0)) {
                 sections.push(`- \`${sm.path}\`: ${sm.errors}`);
               }
             }
             if (warningCount > 0) {
               sections.push('');
               sections.push('**Sitemaps with warnings:**');
-              for (const sm of sitemaps.filter((s) => s.warnings)) {
+              for (const sm of sitemaps.filter((s) => (s.warnings ?? 0) > 0)) {
                 sections.push(`- \`${sm.path}\`: ${sm.warnings}`);
               }
             }
@@ -769,8 +769,8 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
           } else {
             sitemapScore = 100;
 
-            const errorSitemaps = sitemaps.filter((s) => s.errors);
-            const warningSitemaps = sitemaps.filter((s) => s.warnings);
+            const errorSitemaps = sitemaps.filter((s) => (s.errors ?? 0) > 0);
+            const warningSitemaps = sitemaps.filter((s) => (s.warnings ?? 0) > 0);
             const pendingSitemaps = sitemaps.filter((s) => s.isPending);
 
             // Deduct for errors (most severe)
@@ -985,8 +985,8 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
             sections.push(`- ${sitemaps.length} sitemap${sitemaps.length > 1 ? 's' : ''} submitted`);
             sections.push(`- ${formatNumber(totalUrls)} total URLs in sitemaps`);
 
-            const errorCount = sitemaps.filter((s) => s.errors).length;
-            const warningCount = sitemaps.filter((s) => s.warnings).length;
+            const errorCount = sitemaps.filter((s) => (s.errors ?? 0) > 0).length;
+            const warningCount = sitemaps.filter((s) => (s.warnings ?? 0) > 0).length;
             if (errorCount > 0) sections.push(`- ${errorCount} sitemap${errorCount > 1 ? 's' : ''} with errors`);
             if (warningCount > 0) sections.push(`- ${warningCount} sitemap${warningCount > 1 ? 's' : ''} with warnings`);
             if (errorCount === 0 && warningCount === 0) sections.push('- No errors or warnings detected');

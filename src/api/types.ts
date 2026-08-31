@@ -63,8 +63,8 @@ export interface SitemapInfo {
   isSitemapsIndex: boolean;
   type: string;
   lastDownloaded?: string;
-  warnings?: string;
-  errors?: string;
+  warnings?: number;
+  errors?: number;
   contents?: SitemapContent[];
 }
 

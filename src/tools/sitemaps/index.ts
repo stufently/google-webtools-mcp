@@ -33,7 +33,7 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
         const separator = `| --- | --- | --- | ---: | --- |`;
 
         const rows = sitemaps.map((sm) => {
-          const status = sm.isPending ? 'Pending' : (sm.errors ? 'Error' : 'Success');
+          const status = sm.isPending ? 'Pending' : ((sm.errors ?? 0) > 0 ? 'Error' : 'Success');
           const urlCount = sm.contents
             ? sm.contents.reduce((sum, c) => sum + parseInt(c.submitted ?? '0', 10), 0)
             : '—';
@@ -44,7 +44,7 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
         const data = [header, separator, ...rows].join('\n');
 
         const pendingCount = sitemaps.filter((s) => s.isPending).length;
-        const errorCount = sitemaps.filter((s) => s.errors).length;
+        const errorCount = sitemaps.filter((s) => (s.errors ?? 0) > 0).length;
         const totalUrls = sitemaps.reduce((total, sm) => {
           if (!sm.contents) return total;
           return total + sm.contents.reduce((sum, c) => sum + parseInt(c.submitted ?? '0', 10), 0);
@@ -82,7 +82,7 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
       try {
         const sm = await api.getSitemap(siteUrl, feedpath);
 
-        const status = sm.isPending ? 'Pending' : (sm.errors ? 'Error' : 'Success');
+        const status = sm.isPending ? 'Pending' : ((sm.errors ?? 0) > 0 ? 'Error' : 'Success');
 
         const lines = [
           `| Field | Value |`,
@@ -95,10 +95,10 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
           `| **Last downloaded** | ${sm.lastDownloaded ?? '—'} |`,
         ];
 
-        if (sm.warnings) {
+        if ((sm.warnings ?? 0) > 0) {
           lines.push(`| **Warnings** | ${sm.warnings} |`);
         }
-        if (sm.errors) {
+        if ((sm.errors ?? 0) > 0) {
           lines.push(`| **Errors** | ${sm.errors} |`);
         }
 
@@ -119,14 +119,14 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
         const summary = `Sitemap ${sm.path} — status: ${status}, type: ${sm.type}${sm.isSitemapsIndex ? ' (sitemap index)' : ''}.`;
 
         const recommendations: string[] = [];
-        if (sm.errors) {
+        if ((sm.errors ?? 0) > 0) {
           recommendations.push(
             `This sitemap has errors: ${sm.errors}`,
             'Check the sitemap file for XML syntax errors or invalid URLs.',
             'Resubmit the sitemap after fixing issues.',
           );
         }
-        if (sm.warnings) {
+        if ((sm.warnings ?? 0) > 0) {
           recommendations.push(
             `This sitemap has warnings: ${sm.warnings}`,
             'Review the sitemap for potential issues that may affect indexing.',

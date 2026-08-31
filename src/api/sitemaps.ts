@@ -18,9 +18,24 @@ import type { SitemapInfo, SitemapContent } from './types.js';
 // ---------------------------------------------------------------------------
 
 /**
+ * Parse an API counter into a finite number.
+ */
+function toCount(value: unknown): number | undefined {
+  if (
+    (typeof value !== 'string' && typeof value !== 'number')
+    || (typeof value === 'string' && value.trim() === '')
+  ) {
+    return undefined;
+  }
+
+  const count = Number(value);
+  return Number.isFinite(count) ? count : undefined;
+}
+
+/**
  * Map a raw API sitemap entry to our typed {@link SitemapInfo}.
  */
-function toSitemapInfo(raw: webmasters_v3.Schema$WmxSitemap): SitemapInfo {
+export function toSitemapInfo(raw: webmasters_v3.Schema$WmxSitemap): SitemapInfo {
   const contents: SitemapContent[] = (raw.contents ?? []).map((c) => ({
     type: c.type ?? 'unknown',
     submitted: c.submitted ?? undefined,
@@ -34,8 +49,8 @@ function toSitemapInfo(raw: webmasters_v3.Schema$WmxSitemap): SitemapInfo {
     isSitemapsIndex: raw.isSitemapsIndex ?? false,
     type: raw.type ?? 'unknown',
     lastDownloaded: raw.lastDownloaded ?? undefined,
-    warnings: raw.warnings ?? undefined,
-    errors: raw.errors ?? undefined,
+    warnings: toCount(raw.warnings),
+    errors: toCount(raw.errors),
     contents: contents.length > 0 ? contents : undefined,
   };
 }

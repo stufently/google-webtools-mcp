@@ -21,6 +21,20 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
+- **A healthy sitemap is no longer reported as broken.** Search Console returns
+  the `errors` and `warnings` counters as *strings*, and the string `"0"` is
+  truthy in JavaScript. Every sitemap that had ever been fetched successfully
+  was therefore labelled `Status: Error` — printed in the same table as
+  `Errors: 0` — and `get_sitemap_details` advised checking a perfectly valid
+  file for "XML syntax errors". The same truthiness read appeared about ten
+  times across the sitemap and report tools, so the fix is at the boundary
+  rather than at each site: `SitemapInfo.errors` and `.warnings` are now
+  `number`, parsed once in `toSitemapInfo` (blank, non-numeric and infinite
+  values become `undefined`), and every read is an explicit `> 0`. This changes
+  the type of two fields on `SitemapInfo`; nothing outside this repository
+  consumes it, and the text the MCP tools emit is unchanged apart from no
+  longer being wrong. Regression tests pin the live thaigid.top response.
+
 - **Reporting windows no longer end inside Search Console's unsettled tail.**
   Every named period (`last7d`, `last28d`, …) ended at *yesterday*, but Search
   Console keeps collecting the most recent days: with `dataState: "final"` —
