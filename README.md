@@ -7,6 +7,16 @@ An MCP server that gives an AI agent direct access to **Google Search Console** 
 
 ---
 
+## For AI agents
+
+If an agent is driving this server, point it at **[SKILL.md](SKILL.md)** first
+(Russian). It covers the working order — property discovery, verification,
+sitemaps, indexing checks, the regular audit path — how to read a URL Inspection
+result, what Search Console does *not* expose, which calls burn quota, and which
+tools write to live configuration.
+
+---
+
 ## What it does
 
 The server exposes **39 tools** built on five Google APIs:
