@@ -46,6 +46,76 @@ function pctChange(current: number, previous: number): number | null {
   return ((current - previous) / Math.abs(previous)) * 100;
 }
 
+/** The four totals a period-over-period comparison works on. */
+export interface PeriodTotals {
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+/**
+ * True when the baseline period actually returned data.
+ *
+ * A property created last month has no previous period: Search Console returns
+ * no rows, the code substitutes zeros, and every comparison against those zeros
+ * is meaningless. An average position of 8.5 compared against a "previous" 0.0
+ * is not a decline -- it is the absence of a baseline.
+ */
+export function hasBaseline(previousRows: readonly unknown[]): boolean {
+  return previousRows.length > 0;
+}
+
+/**
+ * Recommendations for get_performance_summary.
+ *
+ * Comparative advice is gated on `baselineExists`. Without it only the
+ * observations that stand on the current period alone are emitted, plus one
+ * line saying why the comparison is missing -- silence there would leave the
+ * "N/A" column in the table unexplained.
+ */
+export function buildPerformanceRecommendations(
+  current: PeriodTotals,
+  previous: PeriodTotals,
+  baselineExists: boolean,
+): string[] {
+  const recommendations: string[] = [];
+
+  if (!baselineExists) {
+    recommendations.push(
+      'No data for the previous period, so nothing here is a trend yet: the property was likely added or verified partway through, and Search Console has no history to compare against. Re-run once a full comparison window has accumulated.',
+    );
+  } else {
+    const clicksPctChange = pctChange(current.clicks, previous.clicks);
+    const impressionsPctChange = pctChange(current.impressions, previous.impressions);
+    const positionChange = current.position - previous.position;
+
+    if (clicksPctChange !== null && clicksPctChange < -10) {
+      recommendations.push('Clicks have dropped significantly. Investigate whether rankings have changed or if there are indexing issues.');
+    }
+    if (impressionsPctChange !== null && impressionsPctChange > 10 && clicksPctChange !== null && clicksPctChange < 5) {
+      recommendations.push('Impressions are growing but clicks are not keeping pace. Consider improving title tags and meta descriptions to boost CTR.');
+    }
+    // Only meaningful when the previous period actually ranked for something;
+    // a previous position of 0 means "no data", not "position zero".
+    if (previous.position > 0 && positionChange > 2) {
+      recommendations.push('Average position has worsened. Review content freshness and backlink profile for your key pages.');
+    }
+    if (clicksPctChange !== null && clicksPctChange > 10) {
+      recommendations.push('Great progress! Clicks are trending upward. Continue optimizing top-performing queries and pages.');
+    }
+  }
+
+  // Stands on the current period alone -- no baseline needed. Guarded on
+  // impressions because a property with no traffic at all reports ctr 0, and
+  // "your CTR is below 2%" is nonsense advice when nothing was ever shown.
+  if (current.impressions > 0 && current.ctr < 0.02) {
+    recommendations.push('CTR is below 2%. Focus on improving title tags, meta descriptions, and structured data to stand out in search results.');
+  }
+
+  return recommendations;
+}
+
 /**
  * Get a human-friendly label for a CTR performance rating.
  */
@@ -222,46 +292,36 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
           `*Previous period: ${previousRange.startDate} to ${previousRange.endDate}*`,
         ].join('\n');
 
+        const baselineExists = hasBaseline(previousResponse.rows);
+
         // Auto-generated summary
         const clicksDirection = current.clicks >= previous.clicks ? 'up' : 'down';
         const clicksChange = formatChange(current.clicks, previous.clicks);
         const impressionsDirection = current.impressions >= previous.impressions ? 'up' : 'down';
         const impressionsChange = formatChange(current.impressions, previous.impressions);
 
+        const comparisonSentence = baselineExists
+          ? `Compared to the previous period, clicks are ${clicksDirection} ${clicksChange} and impressions are ${impressionsDirection} ${impressionsChange}.`
+          : `Search Console returned no data for the previous period (${previousRange.startDate} to ${previousRange.endDate}), so there is nothing to compare against and the Change column is N/A throughout.`;
+
         const summary = [
           `Your site received ${formatNumber(current.clicks)} clicks from ${formatNumber(current.impressions)} impressions over the ${params.period} period.`,
-          `Compared to the previous period, clicks are ${clicksDirection} ${clicksChange} and impressions are ${impressionsDirection} ${impressionsChange}.`,
+          comparisonSentence,
           `Average CTR is ${formatPercent(current.ctr)} and average position is ${formatPosition(current.position)}.`,
         ].join(' ');
 
-        // Recommendations based on data
-        const recommendations: string[] = [];
-
-        const clicksPctChange = pctChange(current.clicks, previous.clicks);
-        const impressionsPctChange = pctChange(current.impressions, previous.impressions);
-        const positionChange = current.position - previous.position;
-
-        if (clicksPctChange !== null && clicksPctChange < -10) {
-          recommendations.push('Clicks have dropped significantly. Investigate whether rankings have changed or if there are indexing issues.');
-        }
-        if (impressionsPctChange !== null && impressionsPctChange > 10 && clicksPctChange !== null && clicksPctChange < 5) {
-          recommendations.push('Impressions are growing but clicks are not keeping pace. Consider improving title tags and meta descriptions to boost CTR.');
-        }
-        if (positionChange > 2) {
-          recommendations.push('Average position has worsened. Review content freshness and backlink profile for your key pages.');
-        }
-        if (current.ctr < 0.02) {
-          recommendations.push('CTR is below 2%. Focus on improving title tags, meta descriptions, and structured data to stand out in search results.');
-        }
-        if (clicksPctChange !== null && clicksPctChange > 10) {
-          recommendations.push('Great progress! Clicks are trending upward. Continue optimizing top-performing queries and pages.');
-        }
+        const recommendations = buildPerformanceRecommendations(current, previous, baselineExists);
 
         const limitations = [
           'Totals are aggregated across all queries and pages.',
           'Windows end at the last day Search Console reports as complete (usually 2-3 days back); the newest days are excluded.',
           'Position is an average and can be skewed by low-impression queries.',
         ];
+        if (!baselineExists) {
+          limitations.push(
+            'The previous period returned no rows at all. Its zeros are placeholders for missing data, not measurements -- do not read any change against them.',
+          );
+        }
 
         const text = formatToolResponse(createToolResponse(table, summary, recommendations, limitations));
         return { content: [{ type: 'text' as const, text }] };

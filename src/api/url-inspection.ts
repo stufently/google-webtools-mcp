@@ -11,7 +11,8 @@ import { CACHE_TTL } from '../cache/cache-manager.js';
 import { buildInspectionKey } from '../cache/cache-keys.js';
 import type { RateLimiter } from '../utils/rate-limiter.js';
 import { handleApiError } from '../errors/error-handler.js';
-import { ValidationError } from '../errors/gsc-error.js';
+import { GscError, ValidationError } from '../errors/gsc-error.js';
+import { decodeHtmlEntities } from '../utils/html-entities.js';
 import type { InspectionResult } from './types.js';
 
 /** Maximum URLs accepted by `batchInspectUrls`. */
@@ -54,7 +55,7 @@ function toInspectionResult(
           issues: mob.issues?.map((issue) => ({
             issueType: issue.issueType ?? '',
             severity: issue.severity ?? '',
-            message: issue.message ?? '',
+            message: decodeHtmlEntities(issue.message ?? ''),
           })),
         }
       : undefined,
@@ -62,8 +63,17 @@ function toInspectionResult(
       ? {
           verdict: rich.verdict ?? 'VERDICT_UNSPECIFIED',
           detectedItems: rich.detectedItems?.map((item) => ({
-            richResultType: item.richResultType ?? '',
-            items: item.items ?? [],
+            // Google sends these labels HTML-escaped ("Q&amp;A"). Our output is
+            // markdown, so decode here rather than shipping the entity through.
+            richResultType: decodeHtmlEntities(item.richResultType ?? ''),
+            items: (item.items ?? []).map((entity) => ({
+              name: entity.name ? decodeHtmlEntities(entity.name) : undefined,
+              // The reason a rich result FAILs lives here and nowhere else.
+              issues: entity.issues?.map((issue) => ({
+                issueMessage: decodeHtmlEntities(issue.issueMessage ?? ''),
+                severity: issue.severity ?? '',
+              })),
+            })),
           })),
         }
       : undefined,
@@ -151,4 +161,57 @@ export async function batchInspectUrls(
   }
 
   return results;
+}
+
+/**
+ * One URL's inspection outcome: either a result or the reason it failed.
+ */
+export type InspectionOutcome =
+  | { url: string; ok: true; result: InspectionResult }
+  | { url: string; ok: false; error: string };
+
+/**
+ * Turns an inspection failure into a line a report can print.
+ *
+ * The raw message from the API is often just "Internal error encountered",
+ * which names neither the URL nor the step; the caller supplies the URL and
+ * the recovery hint carries whatever else is known.
+ */
+export function describeInspectionError(error: unknown): string {
+  if (error instanceof GscError) {
+    const hint = error.recoveryHint ? ` ${error.recoveryHint}` : '';
+    return `${error.code} (HTTP ${error.statusCode}): ${error.message}${hint}`;
+  }
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+/**
+ * Inspects every URL and reports per-URL outcomes instead of throwing.
+ *
+ * The Inspection API fails transiently on individual URLs -- the same URL that
+ * returns "Internal error encountered" succeeds a minute later. Letting that
+ * one failure reject the whole call throws away the other 19 inspections that
+ * did succeed, and the caller cannot even tell which URL broke. Here each URL
+ * stands or falls on its own.
+ */
+export async function inspectUrlsSettled(
+  client: searchconsole_v1.Searchconsole,
+  siteUrl: string,
+  urls: string[],
+  cache: CacheManager,
+  rateLimiter: RateLimiter,
+): Promise<InspectionOutcome[]> {
+  const outcomes: InspectionOutcome[] = [];
+
+  for (const url of urls) {
+    try {
+      const result = await inspectUrl(client, siteUrl, url, cache, rateLimiter);
+      outcomes.push({ url, ok: true, result });
+    } catch (error) {
+      outcomes.push({ url, ok: false, error: describeInspectionError(error) });
+    }
+  }
+
+  return outcomes;
 }

@@ -67,7 +67,7 @@ and two transports — stdio (default) and HTTP.
 | Tool | When to use |
 | --- | --- |
 | `get_search_analytics` | The raw query — full control over dimensions, filters, search type, row limit, data state, aggregation. Use when the shaped tools below don't fit. |
-| `get_performance_summary` | "How are we doing?" — clicks, impressions, CTR, position with period-over-period comparison. |
+| `get_performance_summary` | "How are we doing?" — clicks, impressions, CTR, position with period-over-period comparison. Trend advice is withheld when the previous period returned no data at all. |
 | `compare_periods` | Compare two explicit date ranges side by side (before/after a release, seasonal comparison). |
 | `get_top_queries` | Top queries by clicks, each scored against the CTR benchmark for its position. |
 | `get_top_pages` | Top pages by clicks with the same CTR analysis. |
@@ -77,7 +77,7 @@ and two transports — stdio (default) and HTTP.
 
 | Tool | When to use |
 | --- | --- |
-| `find_quick_wins` | "Where is money left on the table?" — query/page pairs ranking well but under-clicked, and those sitting just off page 1. |
+| `find_quick_wins` | "Where is money left on the table?" — query/page pairs ranking well but under-clicked, and those sitting just off page 1. Each pair lands in exactly one bucket (CTR 1-3, quick gain >3 to 10, page two >10 to 20), so the counts and click estimates add up over the period you asked for. |
 | `find_declining_content` | Catch traffic loss while it is still recoverable — compares the current period against the previous one and reports declining pages and declining queries as two separate rankings. |
 | `find_ctr_opportunities` | Find pages whose CTR is far below the benchmark for their position, with per-page fix suggestions. |
 | `find_content_gaps` | Queries landing on the wrong page, high-impression zero-click queries, topics that need a dedicated page. |
@@ -87,9 +87,9 @@ and two transports — stdio (default) and HTTP.
 
 | Tool | When to use |
 | --- | --- |
-| `inspect_url` | Why is this one URL not showing up? Indexing status, mobile usability, rich results. |
+| `inspect_url` | Why is this one URL not showing up? Indexing status, mobile usability, rich results — including the per-item validation issues behind a FAIL verdict. |
 | `batch_inspect_urls` | Same check across a list of URLs (max 50 per call). |
-| `check_indexing_issues` | Audit your top traffic pages for indexing failures, canonical mismatches, and mobile problems. |
+| `check_indexing_issues` | Audit your top traffic pages for indexing failures, canonical mismatches, missing canonicals, and mobile problems. A URL the API errors on is reported as not inspected; the rest of the audit still runs. |
 
 ### Query analysis (3)
 
@@ -97,7 +97,7 @@ and two transports — stdio (default) and HTTP.
 | --- | --- |
 | `analyze_query_landscape` | Understand the shape of your demand — intent mix, branded vs non-branded, position distribution. |
 | `find_new_queries` | Surface genuinely new and fast-rising queries by diffing this period against the previous one. |
-| `find_cannibalization` | Detect several of your own pages competing for the same query. |
+| `find_cannibalization` | Detect several of your own pages competing for the same query. The winner is the page with the most clicks, not the best average position, and queries where only one page carries real volume get no consolidation advice. |
 
 ### Reports (2)
 

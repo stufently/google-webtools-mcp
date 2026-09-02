@@ -28,7 +28,12 @@ import {
   submitSitemap,
   deleteSitemap,
 } from './sitemaps.js';
-import { inspectUrl, batchInspectUrls } from './url-inspection.js';
+import {
+  inspectUrl,
+  batchInspectUrls,
+  inspectUrlsSettled,
+  type InspectionOutcome,
+} from './url-inspection.js';
 
 // ---------------------------------------------------------------------------
 // Client class
@@ -173,6 +178,23 @@ export class GscApiClient {
     urls: string[],
   ): Promise<InspectionResult[]> {
     return batchInspectUrls(
+      this.searchconsole,
+      siteUrl,
+      urls,
+      this.cache,
+      this.rateLimiter,
+    );
+  }
+
+  /**
+   * Inspect multiple URLs, reporting per-URL failures instead of throwing.
+   * One transient error no longer discards the URLs that did succeed.
+   */
+  async inspectUrlsSettled(
+    siteUrl: string,
+    urls: string[],
+  ): Promise<InspectionOutcome[]> {
+    return inspectUrlsSettled(
       this.searchconsole,
       siteUrl,
       urls,

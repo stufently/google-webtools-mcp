@@ -4,6 +4,116 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`find_cannibalization` picked the winner by average position and advised
+  destroying the working page (2026-09-02).** Competing pages were sorted by
+  `position` alone, so on `sc-domain:hqdthai.ru` a page seen **10 times** at
+  position 3.1 was named Winner over the page carrying **1,399 impressions** and
+  every click — and the report recommended 301-redirecting the second into the
+  first. Average position on ten impressions carries no information; the
+  sampling error on a mean scales with 1/sqrt(n). The winner is now the page
+  with the most clicks (ties broken on impressions, and only then on position),
+  and a page counts as a real contender at `minPageImpressions` (default 30,
+  exposed as a tool parameter). A query where only one page clears that bar is
+  labelled `[LOW VOLUME]` and gets no redirect or canonical advice at all —
+  there is nothing to consolidate, only noise. Even for a genuine split the
+  advice now leads with an intent check rather than a redirect: distinct
+  products cross-rank on each other's names as a matter of course (Marlboro
+  Aroma Bright and Aroma Sunrise are different cigarettes), and merging them
+  loses a live page instead of fixing anything. Severity is judged on contenders
+  only, so a page seen three times can no longer promote a case to "critical".
+  "Wasted impressions" are counted for actionable cases only: on the same
+  property the headline fell from **17,962 to 2,114**, because the old number
+  was mostly the real page's own traffic booked as loss.
+
+- **`find_quick_wins` counted rows twice and summed contradictory scenarios
+  (2026-09-02).** Bucket B was positions 8-20 and bucket C positions 4-10, so
+  every row in 8-10 was in both. On `sc-domain:hqdthai.ru` (last3m,
+  `minImpressions: 50`) that inflated 294 real opportunities into a reported
+  **347**, and the click estimate added, for each overlapping row, both "if it
+  reached the top 5" and "if it climbed two spots" — two futures that cannot
+  both happen. Bucketing moved to `src/analysis/quick-wins.ts` and is now
+  exhaustive and disjoint: 1-3 CTR fix, above 3 to 10 quick gain, above 10 to 20
+  page-two breakthrough. Counts add up to the total, each row is credited with
+  one scenario, and positions between 3 and 4 — which fell through both old
+  filters — are classified instead of dropped. The 8-20 section is renamed "Page
+  2 Breakthrough (Position 10-20)", since 8-10 was never "almost page 1".
+
+- **`get_performance_summary` drew conclusions from an empty baseline
+  (2026-09-02).** On `sc-domain:hqdphuket.com` (data only since 2026-07-01) the
+  previous period returned no rows, the code substituted zeros, and the tool
+  reported "Average position has worsened" from comparing 8.5 against 0.0 — the
+  Change column honestly said `N/A` on the very same numbers. Comparative
+  recommendations are now gated on the baseline period actually returning rows,
+  the position check additionally refuses a previous position of zero, and the
+  summary says plainly that there is nothing to compare against. Observations
+  that stand on the current period alone (CTR below 2%) still appear.
+
+- **`check_indexing_issues` lost the whole audit to one failed URL
+  (2026-09-02).** A single transient `Internal error encountered` on one URL of
+  `https://samuifaq.ru/` rejected the entire call — the other 19 inspections,
+  already paid for in quota, were discarded, and the message named neither the
+  URL nor the step. New `inspectUrlsSettled` (API client + `url-inspection.ts`)
+  reports per-URL outcomes, and the audit prints a "Not Inspected" table with
+  the URL and reason for each failure, an overview row counting them, and a
+  recommendation that those pages are *not* cleared. `auditInspections` is
+  extracted as a pure function and unit-tested.
+
+- **`inspect_url` reported rich-result FAIL without saying why (2026-09-02).**
+  `richResultsResult.detectedItems[].items[].issues[]` was typed `any[]` and
+  never rendered, so the verdict was a dead end. The issues are now typed,
+  mapped and printed as a table (errors before warnings), and the distinct
+  ERROR messages are folded into the `check_indexing_issues` issue text —
+  `Rich results failing validation -- Q&A: Missing field "answerCount"` instead
+  of a bare "failing validation".
+
+- **HTML entities reached the reader undecoded (2026-09-02).** Search Console
+  returns display strings HTML-escaped, so a Q&A page's rich result type printed
+  as `Q&amp;A` in markdown output, and issue messages carried `&quot;`. New
+  `decodeHtmlEntities` (`src/utils/html-entities.ts`) decodes named and numeric
+  references on ingest in `toInspectionResult`, in a single pass so `&amp;lt;`
+  stays the literal text `&lt;`.
+
+- **`check_indexing_issues` was blind to a missing canonical (2026-09-02).** The
+  canonical check compared `userCanonical` with `googleCanonical` and therefore
+  ran only when both existed: `https://hqdpattaya.com/chapman-19` has
+  `User canonical: Not set` and was counted as having zero canonical problems.
+  A page that declares no canonical leaves the choice of representative URL
+  entirely to Google, which is the usual root of the cannibalization the sibling
+  tool reports. It is now its own category — "Missing canonical" — in the
+  overview, the issue breakdown and the recommendations, kept separate from a
+  mismatch, and `inspect_url` warns about it too.
+
+- **Fixes found in review of the above (2026-09-02).**
+  - *The cannibalization winner could still be a low-volume page — the same
+    defect inverted.* The winner was chosen across all pages while `actionable`
+    was decided on contenders, so a page with one click on one impression beat
+    two pages holding 1,000 and 500 impressions, the case counted as actionable,
+    and the report advised redirecting a real page into the noise. The winner is
+    now drawn from the contenders; the whole-list leader is used only when
+    nothing clears the bar, where no advice is given anyway.
+  - *Wasted impressions contradicted their own footnote.* They summed every
+    loser, including pages below the contender threshold, while the limitation
+    text promised those were excluded. They now sum losing contenders only.
+  - *"Not enough data" claimed one page had volume even when none did.* A query
+    where every page sits under the threshold now says exactly that.
+  - *Markdown escaping was partial and unevenly applied.* `escapeTableCell`
+    moved to `src/utils/markdown.ts` and the indexing tool now routes every
+    external string — item names, coverage states, error messages, URLs —
+    through it. Backslashes and angle brackets are escaped too, which matters
+    now that HTML entities are decoded on ingest: `&#124;` arrives as a real
+    pipe. Covered by a test on the rendered report, not just on the escaper.
+  - *Quick-win estimates were labelled "per month" for any period.* A `last3m`
+    window reported roughly three months of opportunity as a monthly figure.
+    The wording now says "over a period of this length".
+  - *Bucket labels disagreed with the code.* The boundaries are exclusive at the
+    bottom, so the labels read `pos >3 to 10` and `pos >10 to 20` rather than
+    `4-10` and `10-20`, which appeared to include position 10 twice.
+  - Also: the `find_quick_wins` detail sections now follow the order of its own
+    summary table, and "CTR is below 2%" is no longer offered to a property with
+    zero impressions, where the ratio is 0 only because nothing was ever shown.
+
 ### Added
 
 - **`SKILL.md` — operating instructions for the AI agent using this server

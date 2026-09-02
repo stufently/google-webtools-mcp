@@ -95,6 +95,22 @@ export interface InspectionResult {
   };
   richResultsResult?: {
     verdict: string;
-    detectedItems?: { richResultType: string; items: any[] }[];
+    detectedItems?: {
+      richResultType: string;
+      items: RichResultItem[];
+    }[];
   };
+}
+
+/** A single structured-data entity found on the page, with its validation issues. */
+export interface RichResultItem {
+  name?: string;
+  issues?: RichResultIssue[];
+}
+
+/** One validation complaint against a structured-data entity. */
+export interface RichResultIssue {
+  issueMessage: string;
+  /** "ERROR" (blocks the rich result) or "WARNING" (does not). */
+  severity: string;
 }

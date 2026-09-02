@@ -11,11 +11,13 @@ import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import type { SearchAnalyticsRow, SearchAnalyticsRequest } from '../../api/types.js';
 import { getExpectedCtr, analyzeCtr } from '../../analysis/ctr-benchmarks.js';
+import { classifyQuickWins, sumAdditionalClicks } from '../../analysis/quick-wins.js';
 import { detectTrend, type TrendPoint } from '../../analysis/trend-detector.js';
 import { classifyQuery, classifyQueries } from '../../analysis/query-classifier.js';
 import { getPreviousPeriod, type DatePeriod, type DateRange } from '../../utils/date-helpers.js';
 import { resolveReportingRange } from '../../api/data-freshness.js';
 import { formatNumber, formatPercent, formatPosition, formatChange } from '../../utils/formatting.js';
+import { escapeTableCell } from '../../utils/markdown.js';
 import { siteUrlSchema, periodSchema, searchTypeSchema } from '../schemas.js';
 import { formatErrorForMcp } from '../../errors/error-handler.js';
 
@@ -66,22 +68,9 @@ function scoreOpportunity(opts: {
   return Math.round(additionalClicks * positionMultiplier * volumeMultiplier);
 }
 
-/**
- * Makes an arbitrary string safe to drop into a markdown table cell.
- *
- * Search queries and URLs are attacker-influenced input: anyone can make a page
- * rank for a query they chose. An unescaped `|` silently corrupts the table, and
- * a newline plus `##` lets crafted text pose as our own headings to whatever
- * model reads this output. Collapse the whitespace, neutralise the delimiters.
- */
-export function escapeTableCell(value: string): string {
-  return value
-    .replace(/[\r\n\t]+/g, ' ')
-    .replace(/\\/g, '\\\\')
-    .replace(/\|/g, '\\|')
-    .replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'))
-    .trim();
-}
+// Re-exported so existing importers keep working; the implementation moved to
+// `src/utils/markdown.ts` so the indexing tool escapes cells the same way.
+export { escapeTableCell };
 
 /**
  * Truncates a URL for display in markdown tables.
@@ -310,65 +299,31 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
           };
         }
 
-        // ── Category A: CTR opportunities (Position 1-3, CTR below expected) ──
-        const ctrOpportunities = rows
-          .filter((r) => r.position <= 3 && r.position >= 1)
-          .map((r) => {
-            const expected = getExpectedCtr(r.position);
-            const ctrRatio = expected > 0 ? r.ctr / expected : 1;
-            const additionalClicks = Math.round(r.impressions * Math.max(0, expected - r.ctr));
-            return { ...r, expected, ctrRatio, additionalClicks, category: 'ctr' as const };
-          })
-          .filter((r) => r.ctrRatio < 0.8) // CTR is 20%+ below expected
-          .sort((a, b) => b.additionalClicks - a.additionalClicks);
+        // Each row lands in exactly one bucket: CTR fix (1-3), quick position
+        // gain (4-10), page-two breakthrough (10-20). No row is counted twice
+        // and no row is credited with two mutually exclusive futures.
+        const buckets = classifyQuickWins(rows);
+        const ctrOpportunities = buckets.ctr;
+        const quickGains = buckets.quickGains;
+        const pageTwo = buckets.pageTwo;
 
-        // ── Category B: Almost page 1 (Position 8-20, high impressions) ──
-        const almostPage1 = rows
-          .filter((r) => r.position >= 8 && r.position <= 20)
-          .map((r) => {
-            const expected = getExpectedCtr(r.position);
-            // Estimate value if they moved to position 5
-            const targetCtr = getExpectedCtr(5);
-            const additionalClicks = Math.round(r.impressions * Math.max(0, targetCtr - r.ctr));
-            return { ...r, expected, additionalClicks, category: 'almost_page1' as const };
-          })
-          .sort((a, b) => b.additionalClicks - a.additionalClicks);
+        // Score every opportunity once.
+        const allOpportunities = buckets.all
+          .map((win) => ({
+            ...win,
+            score: scoreOpportunity({
+              impressions: win.row.impressions,
+              currentCtr: win.row.ctr,
+              expectedCtr: win.expectedCtr,
+              position: win.row.position,
+              clicks: win.row.clicks,
+            }),
+          }))
+          .sort((a, b) => b.score - a.score);
 
-        // ── Category C: Quick position gains (Position 4-10) ──
-        const quickGains = rows
-          .filter((r) => r.position >= 4 && r.position <= 10)
-          .map((r) => {
-            const expected = getExpectedCtr(r.position);
-            // Estimate value if they moved up 2-3 positions
-            const targetPosition = Math.max(1, Math.round(r.position) - 2);
-            const targetCtr = getExpectedCtr(targetPosition);
-            const additionalClicks = Math.round(r.impressions * Math.max(0, targetCtr - r.ctr));
-            return { ...r, expected, additionalClicks, category: 'quick_gain' as const };
-          })
-          .sort((a, b) => b.additionalClicks - a.additionalClicks);
-
-        // Score and combine all opportunities
-        type QuickWinRow = typeof ctrOpportunities[number] | typeof almostPage1[number] | typeof quickGains[number];
-        const allOpportunities: (QuickWinRow & { score: number })[] = [
-          ...ctrOpportunities,
-          ...almostPage1,
-          ...quickGains,
-        ].map((r) => ({
-          ...r,
-          score: scoreOpportunity({
-            impressions: r.impressions,
-            currentCtr: r.ctr,
-            expectedCtr: r.expected,
-            position: r.position,
-            clicks: r.clicks,
-          }),
-        }));
-
-        allOpportunities.sort((a, b) => b.score - a.score);
-        const topOpportunities = allOpportunities.slice(0, 50);
-
-        // Estimate total additional clicks
-        const totalAdditionalClicks = allOpportunities.reduce((sum, r) => sum + r.additionalClicks, 0);
+        // Estimate total additional clicks. Safe to add up now that buckets are
+        // disjoint: every row contributes one scenario, not two.
+        const totalAdditionalClicks = sumAdditionalClicks(buckets.all);
 
         // Build markdown output
         const parts: string[] = [];
@@ -376,12 +331,13 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
         parts.push(`**Period:** ${dateRange.startDate} to ${dateRange.endDate} | **Min impressions:** ${formatNumber(minImpressions)}\n`);
 
         parts.push(`## Summary\n`);
-        parts.push(`Found **${formatNumber(allOpportunities.length)} quick wins** that could generate an estimated **${formatNumber(totalAdditionalClicks)} additional clicks/month**.\n`);
+        parts.push(`Found **${formatNumber(allOpportunities.length)} quick wins** that could generate an estimated **${formatNumber(totalAdditionalClicks)} additional clicks over a period of this length**.\n`);
+        parts.push(`Each query/page pair appears in exactly one category, so the counts and estimates below add up to the totals above.\n`);
         parts.push(`| Category | Count | Est. Additional Clicks |`);
         parts.push(`| --- | ---: | ---: |`);
-        parts.push(`| CTR below benchmark (pos 1-3) | ${ctrOpportunities.length} | ${formatNumber(ctrOpportunities.reduce((s, r) => s + r.additionalClicks, 0))} |`);
-        parts.push(`| Almost page 1 (pos 8-20) | ${almostPage1.length} | ${formatNumber(almostPage1.reduce((s, r) => s + r.additionalClicks, 0))} |`);
-        parts.push(`| Quick position gains (pos 4-10) | ${quickGains.length} | ${formatNumber(quickGains.reduce((s, r) => s + r.additionalClicks, 0))} |`);
+        parts.push(`| CTR below benchmark (pos 1-3) | ${ctrOpportunities.length} | ${formatNumber(sumAdditionalClicks(ctrOpportunities))} |`);
+        parts.push(`| Quick position gains (pos >3 to 10) | ${quickGains.length} | ${formatNumber(sumAdditionalClicks(quickGains))} |`);
+        parts.push(`| Page 2 breakthrough (pos >10 to 20) | ${pageTwo.length} | ${formatNumber(sumAdditionalClicks(pageTwo))} |`);
         parts.push('');
 
         // ── CTR Opportunities table ──
@@ -390,43 +346,46 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
           parts.push(`These pages rank in top positions but get fewer clicks than expected. Common causes: poor title tags, missing meta descriptions, rich snippets from competitors.\n`);
           parts.push(`| Query | Page | Pos | Impressions | CTR | Expected CTR | Gap | Est. Clicks |`);
           parts.push(`| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |`);
-          for (const r of ctrOpportunities.slice(0, 15)) {
-            parts.push(`| ${truncateQuery(key(r, 0))} | ${truncateUrl(key(r, 1))} | ${formatPosition(r.position)} | ${formatNumber(r.impressions)} | ${formatPercent(r.ctr)} | ${formatPercent(r.expected)} | ${formatPercent(r.expected - r.ctr)} | +${formatNumber(r.additionalClicks)} |`);
+          for (const w of ctrOpportunities.slice(0, 15)) {
+            const r = w.row;
+            parts.push(`| ${truncateQuery(key(r, 0))} | ${truncateUrl(key(r, 1))} | ${formatPosition(r.position)} | ${formatNumber(r.impressions)} | ${formatPercent(r.ctr)} | ${formatPercent(w.expectedCtr)} | ${formatPercent(w.expectedCtr - r.ctr)} | +${formatNumber(w.additionalClicks)} |`);
           }
           parts.push('');
           parts.push(`**Action:** Rewrite title tags and meta descriptions for these pages. Consider adding structured data (FAQ, HowTo, Review) to win rich snippets.\n`);
         }
 
-        // ── Almost Page 1 table ──
-        if (almostPage1.length > 0) {
-          parts.push(`## Almost Page 1 (Position 8-20)\n`);
-          parts.push(`These queries have high visibility potential. Moving them to page 1 (top 5) would significantly increase clicks.\n`);
-          parts.push(`| Query | Page | Pos | Impressions | Clicks | If Top 5 |`);
-          parts.push(`| --- | --- | ---: | ---: | ---: | ---: |`);
-          for (const r of almostPage1.slice(0, 15)) {
-            parts.push(`| ${truncateQuery(key(r, 0))} | ${truncateUrl(key(r, 1))} | ${formatPosition(r.position)} | ${formatNumber(r.impressions)} | ${formatNumber(r.clicks)} | +${formatNumber(r.additionalClicks)} |`);
-          }
-          parts.push('');
-          parts.push(`**Action:** Strengthen content depth, add internal links, improve page experience, and build topical authority for these queries.\n`);
-        }
-
         // ── Quick Gains table ──
         if (quickGains.length > 0) {
-          parts.push(`## Quick Position Gains (Position 4-10)\n`);
+          parts.push(`## Quick Position Gains (Position >3 to 10)\n`);
           parts.push(`Already visible, a small ranking improvement yields disproportionate click gains due to the steep CTR curve.\n`);
           parts.push(`| Query | Page | Pos | Impressions | Clicks | If +2 Pos |`);
           parts.push(`| --- | --- | ---: | ---: | ---: | ---: |`);
-          for (const r of quickGains.slice(0, 15)) {
-            parts.push(`| ${truncateQuery(key(r, 0))} | ${truncateUrl(key(r, 1))} | ${formatPosition(r.position)} | ${formatNumber(r.impressions)} | ${formatNumber(r.clicks)} | +${formatNumber(r.additionalClicks)} |`);
+          for (const w of quickGains.slice(0, 15)) {
+            const r = w.row;
+            parts.push(`| ${truncateQuery(key(r, 0))} | ${truncateUrl(key(r, 1))} | ${formatPosition(r.position)} | ${formatNumber(r.impressions)} | ${formatNumber(r.clicks)} | +${formatNumber(w.additionalClicks)} |`);
           }
           parts.push('');
           parts.push(`**Action:** Optimize on-page SEO, add semantically related content, improve internal linking, and ensure fast Core Web Vitals.\n`);
         }
 
+        // ── Page 2 table ──
+        if (pageTwo.length > 0) {
+          parts.push(`## Page 2 Breakthrough (Position >10 to 20)\n`);
+          parts.push(`These queries have high visibility potential. Moving them to page 1 (top 5) would significantly increase clicks.\n`);
+          parts.push(`| Query | Page | Pos | Impressions | Clicks | If Top 5 |`);
+          parts.push(`| --- | --- | ---: | ---: | ---: | ---: |`);
+          for (const w of pageTwo.slice(0, 15)) {
+            const r = w.row;
+            parts.push(`| ${truncateQuery(key(r, 0))} | ${truncateUrl(key(r, 1))} | ${formatPosition(r.position)} | ${formatNumber(r.impressions)} | ${formatNumber(r.clicks)} | +${formatNumber(w.additionalClicks)} |`);
+          }
+          parts.push('');
+          parts.push(`**Action:** Strengthen content depth, add internal links, improve page experience, and build topical authority for these queries.\n`);
+        }
+
         // ── Recommendations ──
         parts.push(`## Recommendations\n`);
         parts.push(`1. **Start with CTR opportunities** -- these are the fastest wins. Rewriting title tags takes minutes and can increase clicks immediately.`);
-        parts.push(`2. **Prioritize high-impression "almost page 1" queries** -- these represent the largest untapped traffic pools.`);
+        parts.push(`2. **Prioritize high-impression page-2 queries** -- these represent the largest untapped traffic pools.`);
         parts.push(`3. **Group related queries** and optimize the target page holistically rather than keyword-by-keyword.`);
         parts.push(`4. **Monitor changes** -- re-run this analysis in 2-4 weeks to measure the impact of your optimizations.`);
         parts.push('');
@@ -436,7 +395,8 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
         for (const limitation of SHARED_LIMITATIONS) {
           parts.push(`- ${limitation}`);
         }
-        parts.push(`- "Additional clicks" estimates assume CTR would match industry benchmarks; actual results depend on SERP features, competition, and user intent.`);
+        parts.push(`- "Additional clicks" estimates assume CTR would match industry benchmarks; actual results depend on SERP features, competition, and user intent. They are scaled to the impressions of the window you asked for, not to a calendar month.`);
+        parts.push(`- Each pair is credited with one scenario only -- the one for its own category. A page cannot be counted both for reaching the top 5 and for climbing two spots.`);
 
         return { content: [{ type: 'text' as const, text: parts.join('\n') }] };
       } catch (error) {

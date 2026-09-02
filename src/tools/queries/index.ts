@@ -17,6 +17,12 @@ import {
   getIntentDistribution,
   type QueryIntent,
 } from '../../analysis/query-classifier.js';
+import {
+  buildCannibalizationCases,
+  DEFAULT_MIN_PAGE_IMPRESSIONS,
+  type CannibalizationCase,
+  type CompetingPage,
+} from '../../analysis/cannibalization.js';
 import { getPreviousPeriod } from '../../utils/date-helpers.js';
 import { resolveReportingRange } from '../../api/data-freshness.js';
 import {
@@ -57,6 +63,77 @@ const LIMITATIONS = [
   'Windows end at the last day Search Console reports as complete (usually 2-3 days back, asked of the API rather than assumed); the newest days are excluded.',
   'Intent classification is pattern-based and may not capture nuanced or ambiguous queries.',
 ];
+
+/**
+ * Advice for one cannibalization case.
+ *
+ * Two rules shape the wording. A case without a second page carrying real
+ * volume gets no consolidation advice at all -- there is nothing to consolidate,
+ * only sampling noise. And even for a real split, a redirect is offered as the
+ * conditional branch rather than the headline: pages that look like duplicates
+ * to a query report are routinely distinct products (two flavours of the same
+ * cigarette rank for each other's names), and 301-ing one into the other
+ * destroys a live page to fix a wording problem.
+ */
+export function recommendActions(
+  c: CannibalizationCase,
+  minPageImpressions: number,
+): string[] {
+  const winner = c.winner.url;
+
+  if (!c.actionable) {
+    const tail =
+      'No redirect or canonical change is recommended here. Re-check once a second page accumulates volume.';
+
+    // Two different shapes of "not enough data", and saying the wrong one is a
+    // factual error: either one page carries the query, or none of them does.
+    if (c.contenders.length === 0) {
+      return [
+        `Not enough data to act on: no page reached ${formatNumber(minPageImpressions)} impressions for this query, so every average position here rests on a handful of appearances.`,
+        tail,
+      ];
+    }
+
+    const others = c.losers.map((l) => l.url).join(', ');
+    return [
+      `Not enough data to act on: only ${winner} has meaningful volume for this query (${formatNumber(c.winner.impressions)} impressions). The other page(s) -- ${others} -- stayed under ${formatNumber(minPageImpressions)} impressions, so their average position says nothing.`,
+      tail,
+    ];
+  }
+
+  // The rival worth talking about is the strongest *contender*, not whichever
+  // low-volume page happens to sort first.
+  const rival = c.contenders.find((p) => p.url !== winner)?.url ?? c.losers[0]!.url;
+
+  const lines: string[] = [
+    `First check whether ${winner} and ${rival} are meant to serve the same intent. Product variants, models and flavours usually are not -- for those, differentiate rather than merge.`,
+  ];
+
+  if (c.severity === 'critical') {
+    lines.push(
+      `Same intent: consolidate ${rival} into ${winner} and 301-redirect it, or -- the reversible option -- add a canonical tag from ${rival} to ${winner} first and watch the effect.`,
+    );
+    lines.push(
+      `Different intent: keep both, but make the title, H1 and opening paragraph of each unmistakably distinct, and point internal links for this query at ${winner}.`,
+    );
+  } else if (c.severity === 'high') {
+    lines.push(
+      `Same intent: add a canonical tag from ${rival} to ${winner}.`,
+    );
+    lines.push(
+      `Different intent: make ${winner} target the primary intent and ${rival} a clearly distinct sub-topic.`,
+    );
+  } else {
+    lines.push(
+      `Differentiate the content: make ${winner} target one intent and ${rival} another.`,
+    );
+    lines.push(
+      `Only if the two pages genuinely serve the same purpose, consolidate into ${winner} and 301-redirect ${rival}.`,
+    );
+  }
+
+  return lines;
+}
 
 // ---------------------------------------------------------------------------
 // Registration
@@ -524,8 +601,16 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
         .describe(
           'Minimum total impressions for a query to be evaluated for cannibalization',
         ),
+      minPageImpressions: z
+        .number()
+        .int()
+        .min(0)
+        .default(DEFAULT_MIN_PAGE_IMPRESSIONS)
+        .describe(
+          'Minimum impressions one page needs before it counts as a real contender. Queries where only a single page clears this bar are reported as low-volume and get no consolidation advice.',
+        ),
     },
-    async ({ siteUrl, period, searchType, minImpressions }) => {
+    async ({ siteUrl, period, searchType, minImpressions, minPageImpressions }) => {
       try {
         const { startDate, endDate } = await resolveReportingRange(api, siteUrl, period, { searchType: searchType ?? 'web' });
 
@@ -538,87 +623,10 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
           rowLimit: 10000,
         });
 
-        // Group rows by query
-        const queryPages = new Map<string, SearchAnalyticsRow[]>();
-        for (const row of response.rows) {
-          const query = row.keys[0]!;
-          const existing = queryPages.get(query);
-          if (existing) {
-            existing.push(row);
-          } else {
-            queryPages.set(query, [row]);
-          }
-        }
-
-        interface CompetingPage {
-          url: string;
-          position: number;
-          clicks: number;
-          impressions: number;
-          ctr: number;
-        }
-
-        interface CannibalizationCase {
-          query: string;
-          pages: CompetingPage[];
-          totalImpressions: number;
-          totalClicks: number;
-          severity: 'critical' | 'high' | 'medium';
-          winner: CompetingPage;
-          losers: CompetingPage[];
-        }
-
-        const cases: CannibalizationCase[] = [];
-
-        for (const [query, rows] of queryPages) {
-          if (rows.length < 2) continue;
-
-          const totalImpressions = rows.reduce(
-            (s, r) => s + r.impressions,
-            0,
-          );
-          if (totalImpressions < minImpressions) continue;
-
-          // Sort by position ascending (best first)
-          const sorted = [...rows].sort((a, b) => a.position - b.position);
-
-          const pages: CompetingPage[] = sorted.map((r) => ({
-            url: r.keys[1]!,
-            position: r.position,
-            clicks: r.clicks,
-            impressions: r.impressions,
-            ctr: r.ctr,
-          }));
-
-          const winner = pages[0]!;
-          const losers = pages.slice(1);
-          const totalClicks = rows.reduce((s, r) => s + r.clicks, 0);
-
-          // Determine severity
-          let severity: 'critical' | 'high' | 'medium';
-          const bestPos = winner.position;
-          const secondBestPos = losers[0]!.position;
-
-          if (bestPos <= 10 && secondBestPos <= 10) {
-            // Both on page 1 - actively hurting each other
-            severity = 'critical';
-          } else if (bestPos <= 10 && secondBestPos <= 20) {
-            // One page 1, one page 2 - confused signals
-            severity = 'high';
-          } else {
-            severity = 'medium';
-          }
-
-          cases.push({
-            query,
-            pages,
-            totalImpressions,
-            totalClicks,
-            severity,
-            winner: winner,
-            losers,
-          });
-        }
+        const cases = buildCannibalizationCases(response.rows, {
+          minImpressions,
+          minPageImpressions,
+        });
 
         if (cases.length === 0) {
           return {
@@ -631,20 +639,20 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
           };
         }
 
-        // Sort by severity (critical > high > medium), then by impressions desc
-        const severityOrder = { critical: 0, high: 1, medium: 2 };
-        cases.sort(
-          (a, b) =>
-            severityOrder[a.severity] - severityOrder[b.severity] ||
-            b.totalImpressions - a.totalImpressions,
-        );
+        const actionableCases = cases.filter((c) => c.actionable);
+        const lowVolumeCases = cases.filter((c) => !c.actionable);
 
-        // Count severity levels
-        const criticalCount = cases.filter(
+        // Severity counts describe the actionable cases only: a query where a
+        // single page carries the traffic has no severity worth reporting.
+        const criticalCount = actionableCases.filter(
           (c) => c.severity === 'critical',
         ).length;
-        const highCount = cases.filter((c) => c.severity === 'high').length;
-        const mediumCount = cases.filter((c) => c.severity === 'medium').length;
+        const highCount = actionableCases.filter(
+          (c) => c.severity === 'high',
+        ).length;
+        const mediumCount = actionableCases.filter(
+          (c) => c.severity === 'medium',
+        ).length;
 
         // Collect affected pages
         const affectedPages = new Set<string>();
@@ -654,31 +662,37 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
           }
         }
 
-        const wastedImpressions = cases.reduce((sum, c) => {
-          // Wasted = impressions going to losers instead of the winner
-          const loserImpressions = c.losers.reduce(
-            (s, l) => s + l.impressions,
-            0,
-          );
-          return sum + loserImpressions;
-        }, 0);
+        const wastedImpressions = cases.reduce(
+          (sum, c) => sum + c.wastedImpressions,
+          0,
+        );
 
         // --- Build output ---
         const parts: string[] = [];
         parts.push(
-          `# Keyword Cannibalization Report\n\n**Site:** ${siteUrl}  \n**Period:** ${startDate} to ${endDate} (${period})  \n**Cannibalized queries:** ${formatNumber(cases.length)}  \n**Severity breakdown:** ${criticalCount} critical, ${highCount} high, ${mediumCount} medium  \n`,
+          `# Keyword Cannibalization Report\n\n**Site:** ${siteUrl}  \n**Period:** ${startDate} to ${endDate} (${period})  \n**Queries with several ranking pages:** ${formatNumber(cases.length)}  \n**Actionable (two or more pages with real volume):** ${formatNumber(actionableCases.length)}  \n**Low-volume (one page carries the query):** ${formatNumber(lowVolumeCases.length)}  \n**Severity breakdown (actionable only):** ${criticalCount} critical, ${highCount} high, ${mediumCount} medium  \n`,
         );
+
+        // How pages are ranked
+        parts.push('### How the winner is chosen\n');
+        parts.push(
+          `- The **winner** is the page earning the most clicks for the query, breaking ties on impressions and only then on average position. A better average position on a handful of impressions is noise, not a win.`,
+        );
+        parts.push(
+          `- A page counts as a real contender at **${formatNumber(minPageImpressions)}+ impressions**. Queries where only one page clears that bar are listed as low-volume: they get no consolidation advice, because there is not enough data to call a winner.`,
+        );
+        parts.push('');
 
         // Severity legend
         parts.push('### Severity Levels\n');
         parts.push(
-          '- **Critical:** Both pages on page 1 (positions 1-10) -- actively splitting clicks',
+          '- **Critical:** Two contending pages both on page 1 (positions 1-10) -- actively splitting clicks',
         );
         parts.push(
-          '- **High:** One page on page 1, one on page 2 -- sending mixed ranking signals',
+          '- **High:** One contender on page 1, one on page 2 -- sending mixed ranking signals',
         );
         parts.push(
-          '- **Medium:** Both pages on page 2+ -- lower impact but still diluting authority',
+          '- **Medium:** Contenders on page 2+ -- lower impact but still diluting authority',
         );
         parts.push('');
 
@@ -686,8 +700,9 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
         const displayCases = cases.slice(0, 30);
 
         for (const c of displayCases) {
-          const severityEmoji =
-            c.severity === 'critical'
+          const severityEmoji = !c.actionable
+            ? '[LOW VOLUME]'
+            : c.severity === 'critical'
               ? '[CRITICAL]'
               : c.severity === 'high'
                 ? '[HIGH]'
@@ -704,39 +719,27 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
             '|------|----------|--------|-------------|-----|------|',
           );
 
+          const roleOf = (page: CompetingPage, isWinner: boolean): string => {
+            if (isWinner) return 'Winner';
+            return page.impressions >= minPageImpressions
+              ? 'Contender'
+              : 'Low volume';
+          };
+
           parts.push(
-            `| ${c.winner.url} | ${formatPosition(c.winner.position)} | ${formatNumber(c.winner.clicks)} | ${formatNumber(c.winner.impressions)} | ${formatPercent(c.winner.ctr)} | Winner |`,
+            `| ${c.winner.url} | ${formatPosition(c.winner.position)} | ${formatNumber(c.winner.clicks)} | ${formatNumber(c.winner.impressions)} | ${formatPercent(c.winner.ctr)} | ${roleOf(c.winner, true)} |`,
           );
           for (const loser of c.losers) {
             parts.push(
-              `| ${loser.url} | ${formatPosition(loser.position)} | ${formatNumber(loser.clicks)} | ${formatNumber(loser.impressions)} | ${formatPercent(loser.ctr)} | Loser |`,
+              `| ${loser.url} | ${formatPosition(loser.position)} | ${formatNumber(loser.clicks)} | ${formatNumber(loser.impressions)} | ${formatPercent(loser.ctr)} | ${roleOf(loser, false)} |`,
             );
           }
 
           // Per-case recommendation
           parts.push('');
           parts.push('**Recommended action:**');
-          if (c.severity === 'critical') {
-            parts.push(
-              `- Consolidate content from ${c.losers[0]!.url} into ${c.winner.url} and set up a 301 redirect.`,
-            );
-            parts.push(
-              `- Alternatively, add a canonical tag from ${c.losers[0]!.url} pointing to ${c.winner.url}.`,
-            );
-          } else if (c.severity === 'high') {
-            parts.push(
-              `- Add a canonical tag from ${c.losers[0]!.url} to ${c.winner.url}.`,
-            );
-            parts.push(
-              `- Differentiate the content: make ${c.winner.url} target the primary intent and ${c.losers[0]!.url} target a distinct sub-topic.`,
-            );
-          } else {
-            parts.push(
-              `- Differentiate the content: make ${c.winner.url} target one intent and ${c.losers[0]!.url} target another.`,
-            );
-            parts.push(
-              `- If the pages serve the same purpose, consolidate into ${c.winner.url} and 301 redirect.`,
-            );
+          for (const line of recommendActions(c, minPageImpressions)) {
+            parts.push(`- ${line}`);
           }
           parts.push('');
         }
@@ -755,10 +758,16 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
         parts.push(
           '- Cannibalization detection is based on multiple pages appearing for the same query in GSC data. Some cases may be intentional (e.g., site links, different page types).',
         );
+        parts.push(
+          '- Two pages ranking for one query is not proof of a problem. Distinct products whose names overlap will always cross-rank; consolidating them loses a page instead of fixing anything.',
+        );
+        parts.push(
+          `- Wasted impressions are counted for actionable cases only -- impressions on a page that never clears ${formatNumber(minPageImpressions)} impressions are not traffic a redirect could recover.`,
+        );
         parts.push('');
 
         parts.push(
-          `---\n**Summary:** Found ${formatNumber(cases.length)} cannibalized queries affecting ${formatNumber(affectedPages.size)} pages. Estimated wasted impressions: ${formatNumber(wastedImpressions)}.`,
+          `---\n**Summary:** ${formatNumber(cases.length)} queries have several ranking pages across ${formatNumber(affectedPages.size)} pages; ${formatNumber(actionableCases.length)} of them are actionable. Estimated wasted impressions (actionable cases): ${formatNumber(wastedImpressions)}.`,
         );
 
         return {
