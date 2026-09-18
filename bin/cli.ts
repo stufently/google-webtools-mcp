@@ -1,5 +1,6 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createServer } from '../src/server.js';
+import { createMcpHttpServer } from '../src/http.js';
 import { createAuthenticatedClient } from '../src/auth/client-factory.js';
 import { GscApiClient } from '../src/api/client.js';
 import { Ga4ApiClient } from '../src/api/ga4-client.js';
@@ -25,44 +26,15 @@ async function main(): Promise<void> {
     const ga4 = new Ga4ApiClient(authResult.auth, rateLimiter);
     const verification = new VerificationApiClient(authResult.auth, rateLimiter);
 
-    // Create MCP server
-    const server = createServer(api, ga4, verification);
+    // A factory, not a single instance: HTTP mode needs a fresh McpServer per request.
+    const makeServer = () => createServer(api, ga4, verification);
 
     if (isHttpMode) {
-      // Streamable HTTP transport
-      const { StreamableHTTPServerTransport } = await import(
-        '@modelcontextprotocol/sdk/server/streamableHttp.js'
-      );
-      const { createServer: createHttpServer } = await import('http');
-
+      // Stateless Streamable HTTP transport
       const port = parseInt(process.env['PORT'] ?? '3000', 10);
-
-      const httpServer = createHttpServer(async (req, res) => {
-        if (req.url === '/mcp' && req.method === 'POST') {
-          const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: undefined,
-          });
-          await server.connect(transport);
-
-          // Collect request body
-          const chunks: Buffer[] = [];
-          req.on('data', (chunk: Buffer) => chunks.push(chunk));
-          req.on('end', async () => {
-            const body = Buffer.concat(chunks).toString();
-            try {
-              await transport.handleRequest(req, res, JSON.parse(body));
-            } catch {
-              res.writeHead(400);
-              res.end('Invalid request');
-            }
-          });
-        } else if (req.url === '/health') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ status: 'ok', auth: authResult.method }));
-        } else {
-          res.writeHead(404);
-          res.end('Not found');
-        }
+      const httpServer = createMcpHttpServer({
+        createMcpServer: makeServer,
+        health: () => ({ auth: authResult.method }),
       });
 
       httpServer.listen(port, () => {
@@ -71,6 +43,7 @@ async function main(): Promise<void> {
       });
     } else {
       // Stdio transport (default)
+      const server = makeServer();
       const transport = new StdioServerTransport();
       await server.connect(transport);
       console.error('[google-webtools-mcp] Server running on stdio');

@@ -4,7 +4,27 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-18
+
+First numbered release: everything below has accumulated since the fork was
+tagged 1.0.0 in `package.json`.
+
 ### Fixed
+
+- **HTTP mode (`--http`) died on the second request (2026-09-18).** `bin/cli.ts`
+  kept one `McpServer` and connected it to a new transport on every
+  `POST /mcp`; the SDK allows one transport per server, so the second request
+  threw `Already connected to a transport` and the process exited. After a
+  successful `initialize` no client could reach the tools. HTTP mode is now
+  stateless, as in the SDK's own stateless example: each `POST /mcp` gets a
+  fresh `McpServer` and transport, both closed when the response ends, while
+  the Google API clients, cache and rate limiter stay shared. Invalid JSON gets
+  a JSON-RPC parse error (400), bodies over 4 MB get 413 (the body is drained so the
+  answer reaches the client), an unparsable request URL gets 400 instead of
+  crashing the process, and `GET`/`DELETE
+  /mcp` answer 405 because there are no sessions to resume or end. Covered by
+  `tests/unit/http-transport.test.ts` (sequential, parallel and SDK-client
+  calls on stubbed Google clients).
 
 - **`find_cannibalization` picked the winner by average position and advised
   destroying the working page (2026-09-02).** Competing pages were sorted by

@@ -38,8 +38,7 @@ opportunity scoring, and a recommendation engine. Most tools return a readable
 Infrastructure: an in-memory TTL+LRU cache (search analytics 15 min when the
 range ends within the last 2 days and 1 h once it is older, sitemaps 15 min,
 site lists 30 min, URL inspections 1 h), a rate limiter (20 req/s, burst 30),
-and two transports — stdio (default) and an experimental HTTP mode (see
-[HTTP transport](#http-transport) for its current defect).
+and two transports — stdio (default) and stateless Streamable HTTP.
 
 ---
 
@@ -268,17 +267,27 @@ For OAuth instead of a service account, swap the `env` block for
 
 ### HTTP transport
 
-> **Known defect:** in the current code HTTP mode serves only the first request.
-> `bin/cli.ts` connects the same MCP server to a new transport on every
-> `POST /mcp`, and the second request fails with `Already connected to a
-> transport` and takes the process down. Use stdio until this is fixed.
+For a client that talks to the server over the network instead of spawning it.
+The mode is **stateless**: every `POST /mcp` is handled by a fresh MCP server
+instance, no `Mcp-Session-Id` is issued, and requests can run in parallel. The
+Google credentials, cache and rate limiter are shared across requests.
 
 ```bash
 node dist/cli.js --http           # listens on :3000
 PORT=8080 node dist/cli.js --http # or pick a port
 ```
 
-Endpoints: `POST /mcp` for MCP traffic, `GET /health` for a liveness check.
+Endpoints:
+
+- `POST /mcp` — MCP JSON-RPC (Streamable HTTP). Send
+  `Accept: application/json, text/event-stream`.
+- `GET /health` — liveness, returns `{"status":"ok","auth":"<method>"}`.
+- `GET`/`DELETE /mcp` return 405: there is no server-to-client stream and no
+  session to terminate.
+
+There is no authentication on the HTTP endpoint and it listens on all
+interfaces, while the tools act with your Google credentials (including write
+tools). Keep it on localhost or behind an authenticating proxy.
 
 ### Docker
 
