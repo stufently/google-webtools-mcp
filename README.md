@@ -38,7 +38,8 @@ opportunity scoring, and a recommendation engine. Most tools return a readable
 Infrastructure: an in-memory TTL+LRU cache (search analytics 15 min when the
 range ends within the last 2 days and 1 h once it is older, sitemaps 15 min,
 site lists 30 min, URL inspections 1 h), a rate limiter (20 req/s, burst 30),
-and two transports — stdio (default) and HTTP.
+and two transports — stdio (default) and an experimental HTTP mode (see
+[HTTP transport](#http-transport) for its current defect).
 
 ---
 
@@ -180,10 +181,11 @@ https://www.googleapis.com/auth/siteverification.verify_only
 | `PORT` | HTTP transport port. Default `3000`. Only read with `--http`. |
 
 Authentication methods are tried in this order, and the first one that yields
-usable credentials wins. Note that an explicitly configured source that is
-broken is an error, not a fallback: if `GOOGLE_APPLICATION_CREDENTIALS` points
-at a missing or malformed file, startup fails there rather than quietly moving
-on to the next method.
+usable credentials wins. A method that fails is recorded and the next one is
+tried: if `GOOGLE_APPLICATION_CREDENTIALS` points at a missing or malformed
+file, the server does not stop there — with OAuth configured (and a saved token)
+it starts under the OAuth account instead. Check the `[auth] Authenticated via …`
+line on stderr to see which identity was actually used.
 
 1. Service account — `GOOGLE_APPLICATION_CREDENTIALS`, then `GOOGLE_SERVICE_ACCOUNT_KEY`,
    then `./credentials.json` if its `type` is `service_account`.
@@ -266,6 +268,11 @@ For OAuth instead of a service account, swap the `env` block for
 
 ### HTTP transport
 
+> **Known defect:** in the current code HTTP mode serves only the first request.
+> `bin/cli.ts` connects the same MCP server to a new transport on every
+> `POST /mcp`, and the second request fails with `Already connected to a
+> transport` and takes the process down. Use stdio until this is fixed.
+
 ```bash
 node dist/cli.js --http           # listens on :3000
 PORT=8080 node dist/cli.js --http # or pick a port
@@ -274,6 +281,12 @@ PORT=8080 node dist/cli.js --http # or pick a port
 Endpoints: `POST /mcp` for MCP traffic, `GET /health` for a liveness check.
 
 ### Docker
+
+The OAuth consent callback listens on a random port on `127.0.0.1` *inside* the
+container, so a browser on the host cannot reach it and a first OAuth run in
+Docker times out. Either use a service account (mount the key and set
+`GOOGLE_APPLICATION_CREDENTIALS`), or authorize once outside Docker and copy
+`~/.google-webtools-mcp/token.json` into the token volume.
 
 ```bash
 docker compose up --build
@@ -345,6 +358,19 @@ Requires Node.js 20 or newer.
 
 ---
 
+## Credits
+
+This project started as a fork of
+[awesome-gsc-mcp](https://github.com/Magdoub/awesome-gsc-mcp) by Magdoub, which
+provided the Search Console tools, the analysis layer (CTR benchmarks, trend
+detection, query classification, opportunity scoring, recommendations), the
+cache and the rate limiter. The GA4 Admin/Data and Site Verification tools, the
+authentication rework and the later fixes were added here. The original is
+published under the MIT license.
+
+---
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The copyright notice of the original project is
+kept alongside this one.
