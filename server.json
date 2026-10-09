@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.stufently/google-webtools-mcp",
+  "title": "Google Webtools MCP",
+  "description": "Google Search Console + GA4 for AI agents: properties, reports, indexing, verification, SEO.",
+  "repository": {
+    "url": "https://github.com/stufently/google-webtools-mcp",
+    "source": "github",
+    "id": "1188511039"
+  },
+  "version": "1.1.0",
+  "websiteUrl": "https://github.com/stufently/google-webtools-mcp",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/stufently/google-webtools-mcp:1.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "GOOGLE_SERVICE_ACCOUNT_KEY",
+          "description": "Google service account key, the whole JSON as one string. The account must be added as a user in Search Console and GA4.",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

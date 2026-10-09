@@ -4,6 +4,33 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Container image on GHCR and an entry in the official MCP registry
+  (2026-10-09).** The server was not published anywhere, so installing it meant
+  cloning and building. `ghcr.io/stufently/google-webtools-mcp` (amd64 and
+  arm64) now carries the `io.modelcontextprotocol.server.name` label, and
+  `server.json` describes it to registry.modelcontextprotocol.io as
+  `io.github.stufently/google-webtools-mcp`. The `Publish` workflow pushes the
+  image with `GITHUB_TOKEN` and publishes the entry with a GitHub OIDC token —
+  no personal login or stored secret — by hand or on a `v*` tag. The first
+  publication is the existing 1.1.0 (no version bump); its image is built from
+  the current `main`, which differs from the 1.1.0 commit only in the updated
+  lockfile and CI.
+- README: one copy-paste install (`docker run` with the service account key
+  mounted read-only) and ready blocks for Claude Code, Codex, Claude Desktop,
+  Cursor, Windsurf and Zed. Building from source stays documented for OAuth.
+- CI builds the image and checks over stdio that it answers `initialize` and
+  `tools/list`, and that `server.json` names the image tag for the
+  `package.json` version.
+
+### Changed
+
+- The `Dockerfile` compiles the TypeScript itself (multi-stage), so
+  `docker build .` and `docker compose up --build` no longer need a local
+  `dist/`. A `.dockerignore` keeps `node_modules`, credentials and tokens out of
+  the build context.
+
 ## [1.1.0] - 2026-09-18
 
 First numbered release: everything below has accumulated since the fork was
