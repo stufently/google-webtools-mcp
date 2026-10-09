@@ -452,7 +452,9 @@ npm version patch --no-git-tag-version   # or minor / major
 
 `npm version` bumps `package.json` and the lockfile, then its `version`
 lifecycle script (`scripts/sync-version.mjs`) rewrites `server.json` and the
-image tags here. Add a `CHANGELOG.md` section, commit, push to `main` and wait
+image tags here (a plain `npm version patch` also stages them, so its own
+commit and tag are complete — but tag only after CI is green, as below). Add a
+`CHANGELOG.md` section, commit, push to `main` and wait
 for CI — its `Versions agree` step (`npm run check:version`) fails if any of
 the three disagree. Then tag and push the tag:
 
