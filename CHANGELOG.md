@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-09
+
+Same contents as 1.1.1, re-released with a minor version: raising the minimum
+Node.js for running from source from 20 to 22 (`engines.node` `>=22.0.0`) is a
+change users can notice, so it should not ride on a patch number. Nothing else
+differs; the image, tools and `server.json` are as in 1.1.1. 1.1.1 stays
+published (tag, image and registry entry) and is superseded by this one.
+
 ## [1.1.1] - 2026-10-09
 
 No tool changes. The runtime moves off Node.js 20, which is past end of life,

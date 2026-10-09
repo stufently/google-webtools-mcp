@@ -8,12 +8,12 @@
     "source": "github",
     "id": "1188511039"
   },
-  "version": "1.1.1",
+  "version": "1.2.0",
   "websiteUrl": "https://github.com/stufently/google-webtools-mcp",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/stufently/google-webtools-mcp:1.1.1",
+      "identifier": "ghcr.io/stufently/google-webtools-mcp:1.2.0",
       "transport": {
         "type": "stdio"
       },

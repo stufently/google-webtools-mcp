@@ -207,7 +207,7 @@ step 1 is mounted read-only into the container. Check it starts:
 docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
-  ghcr.io/stufently/google-webtools-mcp:1.1.1
+  ghcr.io/stufently/google-webtools-mcp:1.2.0
 ```
 
 It should print `Server running on stdio` to stderr and wait for a client
@@ -229,7 +229,7 @@ Every client gets the same command: `docker` with the arguments above.
 claude mcp add google-webtools -- docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
-  ghcr.io/stufently/google-webtools-mcp:1.1.1
+  ghcr.io/stufently/google-webtools-mcp:1.2.0
 ```
 
 Add `--scope user` to make it available in every project.
@@ -240,7 +240,7 @@ Add `--scope user` to make it available in every project.
 codex mcp add google-webtools -- docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
-  ghcr.io/stufently/google-webtools-mcp:1.1.1
+  ghcr.io/stufently/google-webtools-mcp:1.2.0
 ```
 
 Or by hand, in `~/.codex/config.toml`:
@@ -252,7 +252,7 @@ args = [
   "run", "-i", "--rm",
   "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
   "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-  "ghcr.io/stufently/google-webtools-mcp:1.1.1",
+  "ghcr.io/stufently/google-webtools-mcp:1.2.0",
 ]
 ```
 
@@ -275,7 +275,7 @@ The same `mcpServers` block for all three; only the file differs:
         "run", "-i", "--rm",
         "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.1.1"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
       ]
     }
   }
@@ -298,7 +298,7 @@ from their MCP settings page.
         "run", "-i", "--rm",
         "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.1.1"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
       ],
       "env": {}
     }
