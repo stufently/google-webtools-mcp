@@ -3,7 +3,7 @@
 An MCP server that gives an AI agent direct access to **Google Search Console** and **Google Analytics 4** — property management, search performance analysis, indexing checks, GA4 reporting, and site verification.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22.0.0-green.svg)](https://nodejs.org/)
 
 ---
 
@@ -318,7 +318,7 @@ client's `env` block (or your shell). This is also what the
 
 ### Build from source
 
-Needed for OAuth, or to run without Docker. Requires Node.js 20 or newer.
+Needed for OAuth, or to run without Docker. Requires Node.js 22 or newer.
 
 ```bash
 git clone https://github.com/stufently/google-webtools-mcp.git
@@ -435,7 +435,7 @@ npm test           # vitest
 npm run lint       # tsc --noEmit
 ```
 
-Requires Node.js 20 or newer.
+Requires Node.js 22 or newer.
 
 ---
 

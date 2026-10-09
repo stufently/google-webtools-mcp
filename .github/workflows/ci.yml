@@ -22,11 +22,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 20 is what the project actually promises: `engines` says >=20, tsup
-        # targets node20 and the Dockerfile runs node:20-slim. It is past EOL,
-        # so it is tested until that floor is raised rather than dropped here.
-        # 22 and 24 are the currently supported LTS lines.
-        node-version: ["20", "22", "24"]
+        # The lines that are not past EOL. 22 is the floor the project
+        # promises (`engines` >=22, tsup targets node22); 24 is the LTS the
+        # image runs (node:24-slim); 26 is Current, tested so the next LTS
+        # does not arrive as a surprise. Drop a line when it reaches EOL and
+        # raise `engines` and the tsup target with it.
+        node-version: ["22", "24", "26"]
 
     steps:
       - name: Checkout

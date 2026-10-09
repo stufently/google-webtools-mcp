@@ -43,7 +43,7 @@
     "url": "https://github.com/stufently/google-webtools-mcp/issues"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",

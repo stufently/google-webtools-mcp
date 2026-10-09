@@ -1,5 +1,5 @@
 # Built from source in the image, so `docker build .` needs no local dist/.
-FROM node:20-slim AS build
+FROM node:24-slim AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -8,7 +8,7 @@ COPY bin ./bin
 COPY src ./src
 RUN npm run build
 
-FROM node:20-slim
+FROM node:24-slim
 # The MCP registry checks this label against the name in server.json before it
 # accepts the image as this server's package.
 LABEL io.modelcontextprotocol.server.name="io.github.stufently/google-webtools-mcp" \
