@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-09
+
+No tool changes. The runtime moves off Node.js 20, which is past end of life,
+and the release is the first one cut by the bump script below. The container
+image published as 1.1.0 already carried the GHCR/registry work listed here.
+
+### Changed
+
+- **Node.js 24 LTS in the image, 22 as the minimum (2026-10-09).** The
+  `Dockerfile` builds and runs on `node:24-slim` instead of `node:20-slim`.
+  `engines.node` is `>=22.0.0` and tsup targets `node22`: 22 is the oldest line
+  that is still supported (endoflife.date). Running from source on Node 20 is no
+  longer promised. CI tests 22, 24 and 26 (Current) instead of 20, 22 and 24.
+- **One command bumps the version everywhere.** `npm version <patch|minor|major>`
+  now also rewrites `server.json` and the image tag pinned in `README.md`
+  through `scripts/sync-version.mjs`, and `serverInfo.version` is read from
+  `package.json` at build time instead of a literal in `src/server.ts` (it had
+  to be edited by hand). CI fails (`npm run check:version`) when `server.json`
+  or a README tag disagrees with `package.json`; the Publish workflow runs the
+  same check. README has a "Releasing" section.
+
 ### Added
 
 - **Container image on GHCR and an entry in the official MCP registry
