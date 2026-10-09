@@ -196,9 +196,129 @@ line on stderr to see which identity was actually used.
 
 If none succeed, the server prints a setup guide and exits.
 
-### 3. Build
+### 3. Install
 
-The package is not published to a registry — clone and build it:
+One path, no clone and no Node.js on your machine: the server ships as a
+container image, `ghcr.io/stufently/google-webtools-mcp` (amd64 and arm64).
+Your MCP client starts it with `docker run`, and the service account key from
+step 1 is mounted read-only into the container. Check it starts:
+
+```bash
+docker run -i --rm \
+  -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
+  ghcr.io/stufently/google-webtools-mcp:1.1.0
+```
+
+It should print `Server running on stdio` to stderr and wait for a client
+(Ctrl+C to quit). The only thing to change in any block below is
+`/absolute/path/to/service-account.json` — Docker needs an absolute path.
+
+The image covers the service account. OAuth does not work in a container on
+the first run (see [Docker](#docker)); for OAuth, [build from source](#build-from-source).
+
+---
+
+## Connecting it
+
+Every client gets the same command: `docker` with the arguments above.
+
+### Claude Code
+
+```bash
+claude mcp add google-webtools -- docker run -i --rm \
+  -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
+  ghcr.io/stufently/google-webtools-mcp:1.1.0
+```
+
+Add `--scope user` to make it available in every project.
+
+### Codex
+
+```bash
+codex mcp add google-webtools -- docker run -i --rm \
+  -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
+  ghcr.io/stufently/google-webtools-mcp:1.1.0
+```
+
+Or by hand, in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.google-webtools]
+command = "docker"
+args = [
+  "run", "-i", "--rm",
+  "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
+  "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
+  "ghcr.io/stufently/google-webtools-mcp:1.1.0",
+]
+```
+
+### Claude Desktop, Cursor, Windsurf
+
+The same `mcpServers` block for all three; only the file differs:
+
+| Client | Config file |
+| --- | --- |
+| Claude Desktop | macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json` |
+| Cursor | `~/.cursor/mcp.json`, or `.cursor/mcp.json` in a project |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
+
+```json
+{
+  "mcpServers": {
+    "google-webtools": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
+        "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
+        "ghcr.io/stufently/google-webtools-mcp:1.1.0"
+      ]
+    }
+  }
+}
+```
+
+Restart Claude Desktop after editing the file; Cursor and Windsurf pick it up
+from their MCP settings page.
+
+### Zed
+
+`settings.json` (`zed: open settings`):
+
+```json
+{
+  "context_servers": {
+    "google-webtools": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
+        "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
+        "ghcr.io/stufently/google-webtools-mcp:1.1.0"
+      ],
+      "env": {}
+    }
+  }
+}
+```
+
+### Key as a string instead of a file
+
+Where mounting a file is awkward (CI, a remote runner), pass the whole key JSON
+in `GOOGLE_SERVICE_ACCOUNT_KEY` and let Docker forward it from the environment:
+replace the `-v …` and `-e GOOGLE_APPLICATION_CREDENTIALS=…` arguments with
+`-e GOOGLE_SERVICE_ACCOUNT_KEY`, and set `GOOGLE_SERVICE_ACCOUNT_KEY` in the
+client's `env` block (or your shell). This is also what the
+[MCP registry](https://registry.modelcontextprotocol.io) entry
+`io.github.stufently/google-webtools-mcp` asks for.
+
+### Build from source
+
+Needed for OAuth, or to run without Docker. Requires Node.js 20 or newer.
 
 ```bash
 git clone https://github.com/stufently/google-webtools-mcp.git
@@ -207,63 +327,14 @@ npm install
 npm run build
 ```
 
-This produces `dist/cli.js`, which is what the MCP client runs.
-
----
-
-## Connecting it
-
-Replace `/path/to/google-webtools-mcp` with your actual clone location, and the
-credentials path with your own key file.
-
-### Claude Code
+Then use `node` as the command and `/path/to/google-webtools-mcp/dist/cli.js`
+as its only argument, with the credentials in `env`, for example:
 
 ```bash
 claude mcp add google-webtools \
-  --env GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json \
+  --env GSC_OAUTH_CLIENT_SECRETS_FILE=/path/to/client-secrets.json \
   -- node /path/to/google-webtools-mcp/dist/cli.js
 ```
-
-### Claude Desktop
-
-`claude_desktop_config.json` — macOS:
-`~/Library/Application Support/Claude/claude_desktop_config.json`,
-Windows: `%APPDATA%\Claude\claude_desktop_config.json`.
-
-```json
-{
-  "mcpServers": {
-    "google-webtools": {
-      "command": "node",
-      "args": ["/path/to/google-webtools-mcp/dist/cli.js"],
-      "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/service-account.json"
-      }
-    }
-  }
-}
-```
-
-### Cursor
-
-`.cursor/mcp.json` in your project, or `~/.cursor/mcp.json` globally:
-
-```json
-{
-  "mcpServers": {
-    "google-webtools": {
-      "command": "node",
-      "args": ["/path/to/google-webtools-mcp/dist/cli.js"],
-      "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/service-account.json"
-      }
-    }
-  }
-}
-```
-
-For OAuth instead of a service account, swap the `env` block for
-`{"GSC_OAUTH_CLIENT_SECRETS_FILE": "/path/to/client-secrets.json"}`.
 
 ### HTTP transport
 
@@ -302,8 +373,9 @@ docker compose up --build
 ```
 
 The bundled `docker-compose.yml` mounts `./credentials` read-only and keeps the
-OAuth token in a named volume so it survives container rebuilds. Build `dist/`
-first — the image copies it rather than compiling.
+OAuth token in a named volume so it survives container rebuilds. The
+`Dockerfile` compiles the TypeScript itself, so no local `dist/` is needed; it
+is the same build that is published to GHCR.
 
 ---
 
