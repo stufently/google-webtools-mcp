@@ -33,15 +33,14 @@ jobs:
         with:
           persist-credentials: false
 
-      # One version, three places: package.json, server.json and the image tag
-      # the registry entry points at. A mismatch would publish an entry for an
-      # image that does not exist.
+      # One version, four places: package.json, server.json, the image tag the
+      # registry entry points at and the tag README.md tells users to run. A
+      # mismatch would publish an entry for an image that does not exist.
       - name: Check versions agree
         id: ver
         run: |
+          node scripts/sync-version.mjs --check
           version=$(jq -r .version package.json)
-          [ "$(jq -r .version server.json)" = "$version" ] || { echo "server.json version differs from package.json ($version)"; exit 1; }
-          [ "$(jq -r '.packages[0].identifier' server.json)" = "${IMAGE}:${version}" ] || { echo "server.json identifier is not ${IMAGE}:${version}"; exit 1; }
           if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
             echo "tag ${GITHUB_REF_NAME} does not match package.json version ${version}"; exit 1
           fi

@@ -17,6 +17,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
+    "version": "node scripts/sync-version.mjs",
+    "check:version": "node scripts/sync-version.mjs --check",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

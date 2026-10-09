@@ -45,6 +45,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # package.json is the version; server.json and the image tag pinned in
+      # README.md must name the same one (see "Releasing" in README.md).
+      - name: Versions agree
+        run: npm run check:version
+
       # `lint` is `tsc --noEmit`, so this is the typecheck too. There is no
       # ESLint or Prettier in this project — no lint/format steps beyond it.
       - name: Lint
@@ -64,14 +69,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-
-      # server.json is what the MCP registry publishes; it must point at the
-      # image tag the Publish workflow will push for this package.json version.
-      - name: server.json matches package.json
-        run: |
-          version=$(jq -r .version package.json)
-          [ "$(jq -r .version server.json)" = "$version" ]
-          [ "$(jq -r '.packages[0].identifier' server.json)" = "ghcr.io/stufently/google-webtools-mcp:$version" ]
 
       - name: Build image
         run: docker build -t google-webtools-mcp:ci .

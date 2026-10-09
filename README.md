@@ -437,6 +437,33 @@ npm run lint       # tsc --noEmit
 
 Requires Node.js 22 or newer.
 
+### Releasing
+
+The version lives in `package.json`. `server.json` (the MCP registry entry) and
+every `ghcr.io/stufently/google-webtools-mcp:<tag>` in this README are derived
+from it, never edited by hand:
+
+```bash
+npm version patch --no-git-tag-version   # or minor / major
+# Docker instead of a local Node:
+# docker run --rm -u "$(id -u):$(id -g)" -v "$PWD":/app -w /app node:24-slim \
+#   npm version patch --no-git-tag-version
+```
+
+`npm version` bumps `package.json` and the lockfile, then its `version`
+lifecycle script (`scripts/sync-version.mjs`) rewrites `server.json` and the
+image tags here. Add a `CHANGELOG.md` section, commit, push to `main` and wait
+for CI — its `Versions agree` step (`npm run check:version`) fails if any of
+the three disagree. Then tag and push the tag:
+
+```bash
+git tag v1.2.3 && git push origin v1.2.3
+```
+
+The `Publish` workflow builds and pushes the image (`:<version>` and
+`:latest`) and publishes `server.json` to the MCP registry; it refuses a tag
+that differs from `package.json`.
+
 ---
 
 ## Credits

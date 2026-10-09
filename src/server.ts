@@ -1,4 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+// Bundled at build time, so serverInfo.version always matches the release.
+import { version } from '../package.json';
 import { GscApiClient } from './api/client.js';
 import { Ga4ApiClient } from './api/ga4-client.js';
 import { VerificationApiClient } from './api/verification-client.js';
@@ -16,7 +18,7 @@ import { registerVerificationTools } from './tools/verification/index.js';
 export function createServer(api: GscApiClient, ga4: Ga4ApiClient, verification: VerificationApiClient): McpServer {
   const server = new McpServer({
     name: 'google-webtools-mcp',
-    version: '1.1.0',
+    version,
   });
 
   // GSC tools
