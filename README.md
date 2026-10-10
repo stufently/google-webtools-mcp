@@ -202,7 +202,7 @@ If none succeed, the server prints a setup guide and exits.
 docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
-  ghcr.io/stufently/google-webtools-mcp:1.2.0
+  ghcr.io/stufently/google-webtools-mcp:1.2.1
 ```
 
 Replace `/absolute/path/to/service-account.json` with the key file from step 1 (Docker needs an absolute path), then paste the command. Docker pulls the image on the first run (amd64 and arm64), so nothing else needs installing. It should print `Server running on stdio` to stderr and wait for a client (Ctrl+C to quit). Every client block below runs this same `docker run`; the key file is mounted read-only and never written into the client config.
@@ -232,7 +232,7 @@ Project file `.mcp.json`, at the root of the project:
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
       ]
     }
   }
@@ -245,7 +245,7 @@ The same server can be registered from a terminal:
 claude mcp add google-webtools -- docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
-  ghcr.io/stufently/google-webtools-mcp:1.2.0
+  ghcr.io/stufently/google-webtools-mcp:1.2.1
 ```
 
 Add `--scope user` to make it available in every project.
@@ -267,7 +267,7 @@ Add `--scope user` to make it available in every project.
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
       ]
     }
   }
@@ -293,7 +293,7 @@ Claude Desktop can also install this server in one click. Download the `.mcpb` f
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
       ]
     }
   }
@@ -317,7 +317,7 @@ Claude Desktop can also install this server in one click. Download the `.mcpb` f
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
       ]
     }
   }
@@ -341,7 +341,7 @@ Zed calls MCP servers context servers. The file is `settings.json` (`zed: open s
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
       ],
       "env": {}
     }
@@ -355,7 +355,7 @@ Zed calls MCP servers context servers. The file is `settings.json` (`zed: open s
 codex mcp add google-webtools -- docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
-  ghcr.io/stufently/google-webtools-mcp:1.2.0
+  ghcr.io/stufently/google-webtools-mcp:1.2.1
 ```
 
 Or by hand, in `~/.codex/config.toml`:
@@ -367,7 +367,7 @@ args = [
   "run", "-i", "--rm",
   "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
   "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-  "ghcr.io/stufently/google-webtools-mcp:1.2.0",
+  "ghcr.io/stufently/google-webtools-mcp:1.2.1",
 ]
 ```
 

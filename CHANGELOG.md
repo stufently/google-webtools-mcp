@@ -4,8 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-10
+
 ### Added
 
+- `glama.json` in the repository root names the maintainer for the Glama directory listing.
 - Tool descriptions now say what each tool does and when to call it, including which neighbouring tool to call instead. Every tool carries `readOnlyHint`, an explicit `destructiveHint`, `openWorldHint`, and `idempotentHint`.
 - README has a single `docker run` install command and a separate JSON block for Claude Code (`.mcp.json`), Claude Desktop, Cursor, Windsurf, and Zed. Example prompts are user tasks, not tool names.
 - Desktop extension (`.mcpb`) for Claude Desktop. `scripts/build-mcpb.sh` packs it, and `.github/workflows/mcpb.yml` attaches `dist-mcpb/*.mcpb` to the GitHub Release of a `v*` tag. Nothing else is published from that workflow.
