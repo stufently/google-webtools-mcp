@@ -25,7 +25,11 @@ import { getExpectedCtr, analyzeCtr } from '../../analysis/ctr-benchmarks.js';
 import { detectTrend, type TrendPoint } from '../../analysis/trend-detector.js';
 import { classifyQueries, getIntentDistribution } from '../../analysis/query-classifier.js';
 import { scoreOpportunity } from '../../analysis/opportunity-scorer.js';
-import { generateRecommendations } from '../../analysis/recommendation-engine.js';
+import {
+  buildReportRecommendations,
+  RECOMMENDATION_DIMENSIONS,
+  RECOMMENDATION_ROW_LIMIT,
+} from './recommendations.js';
 
 // Utility modules
 import { getPreviousPeriod, formatDate, daysBetween } from '../../utils/date-helpers.js';
@@ -131,7 +135,7 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
 
   server.tool(
     'weekly_seo_report',
-    'Build a one-call weekly SEO digest with traffic versus last week, top growers and decliners, quick wins, and sitemap health. Use when the user asks for a weekly report or a regular status update. Call seo_health_check for a letter grade, and call get_performance_summary when they only want the headline numbers.',
+    'Build a one-call weekly SEO digest with traffic versus last week, top growers and decliners, quick wins, sitemap health, and prioritized recommendations. Use when the user asks for a weekly report or a regular status update. Call seo_health_check for a letter grade, and call get_performance_summary when they only want the headline numbers.',
     {
       siteUrl: siteUrlSchema,
       searchType: searchTypeSchema,
@@ -526,31 +530,13 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
 
         // ── Section 7: Prioritized Recommendations ──────────────────────
         const recsResult = await safeSection('Recommendations', async () => {
-          // Gather all available data for the recommendation engine
-          const reportData: {
-            currentTotals?: PerformanceTotals;
-            previousTotals?: PerformanceTotals;
-            queryRows?: SearchAnalyticsRow[];
-            sitemaps?: SitemapInfo[];
-            quickWins?: Array<{ query: string; reason: string; score: number }>;
-          } = {};
-
-          if (perfResult.ok) {
-            reportData.currentTotals = perfResult.data.current;
-            reportData.previousTotals = perfResult.data.previous;
-          }
-          if (queryDataResult.ok) {
-            reportData.queryRows = queryDataResult.data.currentQueryRows;
-          }
-          if (sitemapResult.ok) {
-            reportData.sitemaps = sitemapResult.data;
-          }
-          if (quickWinsResult.ok) {
-            reportData.quickWins = quickWinsResult.data;
-          }
-
-          const recommendations = generateRecommendations({ rows: [], ...reportData });
-          return recommendations;
+          // The engine reasons about query+page pairs, so fetch them for the
+          // current week rather than reusing the query-only rows above.
+          const res = await api.querySearchAnalytics(buildRequest(
+            siteUrl, currentRange.startDate, currentRange.endDate, type,
+            [...RECOMMENDATION_DIMENSIONS], RECOMMENDATION_ROW_LIMIT,
+          ));
+          return buildReportRecommendations(res.rows);
         });
 
         sections.push(`## Prioritized Recommendations`);
@@ -1023,19 +1009,11 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
 
         // ── Prioritized Recommendations ─────────────────────────────────
         const recsResult = await safeSection('Recommendations', async () => {
-          const reportData: {
-            trafficTrend?: ReturnType<typeof detectTrend>;
-            queryRows?: SearchAnalyticsRow[];
-            sitemaps?: SitemapInfo[];
-            issues?: typeof issues;
-          } = {};
-
-          if (trafficResult.ok) reportData.trafficTrend = trafficResult.data;
-          if (ctrResult.ok) reportData.queryRows = ctrResult.data;
-          if (sitemapResult.ok) reportData.sitemaps = sitemapResult.data;
-          reportData.issues = issues;
-
-          return generateRecommendations({ rows: [] });
+          const res = await api.querySearchAnalytics(buildRequest(
+            siteUrl, dateRange28d.startDate, dateRange28d.endDate, type,
+            [...RECOMMENDATION_DIMENSIONS], RECOMMENDATION_ROW_LIMIT,
+          ));
+          return buildReportRecommendations(res.rows);
         });
 
         sections.push(`### Top 5 Recommendations`);

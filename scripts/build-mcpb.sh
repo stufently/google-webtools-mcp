@@ -65,11 +65,15 @@ printf '%s' '{"type":"service_account","project_id":"p","private_key_id":"k","pr
 # tools/list from the build just made. Listing does not call Google.
 export UID_GID PACK="$pack" CREDS="$creds" NODE_IMAGE
 python3 - "$work/tools.json" <<'PY'
-import json, os, select, subprocess, sys, time
+import json, os, select, subprocess, sys, time, uuid
 
 out_path = sys.argv[1]
+# Killing the docker client does not stop the container, so give it a unique
+# name and remove it by that name whenever the server has to be stopped.
+container = "gwt-mcpb-list-%d-%s" % (os.getpid(), uuid.uuid4().hex[:8])
 cmd = [
-    "docker", "run", "--rm", "-i", "--network", "none",
+    "docker", "run", "--rm", "-i", "--init", "--network", "none",
+    "--name", container,
     "-u", os.environ["UID_GID"],
     "-e", "HOME=/tmp",
     "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
@@ -82,6 +86,12 @@ cmd = [
 proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 buf = b""
 next_id = 1
+
+def stop_server():
+    # Remove the container first; the client then exits on its own.
+    subprocess.run(["docker", "rm", "-f", container],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    proc.kill()
 
 def send(obj):
     proc.stdin.write((json.dumps(obj) + "\n").encode())
@@ -115,7 +125,7 @@ def request(method, params, timeout):
                 raise SystemExit("server closed stdout during %s; stderr: %s" % (method, err))
             buf += chunk
     # Stop the server first: reading stderr of a live process would block.
-    proc.kill()
+    stop_server()
     err = b""
     try:
         err = proc.communicate(timeout=10)[1] or b""
@@ -146,7 +156,7 @@ finally:
     try:
         proc.wait(timeout=10)
     except subprocess.TimeoutExpired:
-        proc.kill()
+        stop_server()
         proc.wait()
 
 if len(tools) != 39:
