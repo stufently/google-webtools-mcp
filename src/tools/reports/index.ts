@@ -131,7 +131,7 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
 
   server.tool(
     'weekly_seo_report',
-    'Build a one-call weekly SEO digest with traffic versus last week, growers, decliners, quick wins, sitemap health, and prioritized actions. Use when the user asks for a weekly report or a regular status update. Call seo_health_check for a letter grade, and call get_performance_summary when they only want the headline numbers.',
+    'Build a one-call weekly SEO digest with traffic versus last week, top growers and decliners, quick wins, and sitemap health. Use when the user asks for a weekly report or a regular status update. Call seo_health_check for a letter grade, and call get_performance_summary when they only want the headline numbers.',
     {
       siteUrl: siteUrlSchema,
       searchType: searchTypeSchema,

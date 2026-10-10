@@ -103,7 +103,7 @@
     },
     {
       "name": "batch_inspect_urls",
-      "description": "Inspect up to 50 URLs in one call for index coverage, mobile usability, and rich-result verdicts. Use when the user hands over a list of URLs to check. Call inspect_url for a single URL, and call check_indexing_issues when they want the top traffic pages audited without supplying the list."
+      "description": "Inspect up to 50 URLs in one call and report each URL index verdict, coverage state, last crawl, robots.txt state, and fetch state. Use when the user hands over a list of URLs to check. Call inspect_url for a single URL, and call check_indexing_issues when they want the top traffic pages audited without supplying the list."
     },
     {
       "name": "check_indexing_issues",
@@ -167,7 +167,7 @@
     },
     {
       "name": "weekly_seo_report",
-      "description": "Build a one-call weekly SEO digest with traffic versus last week, growers, decliners, quick wins, sitemap health, and prioritized actions. Use when the user asks for a weekly report or a regular status update. Call seo_health_check for a letter grade, and call get_performance_summary when they only want the headline numbers."
+      "description": "Build a one-call weekly SEO digest with traffic versus last week, top growers and decliners, quick wins, and sitemap health. Use when the user asks for a weekly report or a regular status update. Call seo_health_check for a letter grade, and call get_performance_summary when they only want the headline numbers."
     },
     {
       "name": "seo_health_check",

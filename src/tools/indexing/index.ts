@@ -512,7 +512,7 @@ export function registerIndexingTools(server: McpServer, api: GscApiClient): voi
 
   server.tool(
     'batch_inspect_urls',
-    'Inspect up to 50 URLs in one call for index coverage, mobile usability, and rich-result verdicts. Use when the user hands over a list of URLs to check. Call inspect_url for a single URL, and call check_indexing_issues when they want the top traffic pages audited without supplying the list.',
+    'Inspect up to 50 URLs in one call and report each URL index verdict, coverage state, last crawl, robots.txt state, and fetch state. Use when the user hands over a list of URLs to check. Call inspect_url for a single URL, and call check_indexing_issues when they want the top traffic pages audited without supplying the list.',
     {
       siteUrl: siteUrlSchema,
       urls: z.array(z.string().url()).min(1).max(50).describe('Array of URLs to inspect (max 50)'),

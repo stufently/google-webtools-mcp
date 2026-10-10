@@ -2,8 +2,8 @@
  * Hints a client uses when it chooses a tool and when it asks for confirmation.
  * Every tool here calls a Google API, so openWorldHint is true.
  *
- * createOnce is for GA4 creates: each call adds a new resource, and this server
- * has no tool that removes it, so the change is not reversible from here.
+ * createOnce is for GA4 creates: each call adds a new resource and changes
+ * nothing that exists, so it is not destructive, but it is not idempotent.
  */
 export const readOnly = {
   readOnlyHint: true,
@@ -23,7 +23,7 @@ export const addOnly = {
 /** Creates a new GA4 resource. Repeating the call creates another one. */
 export const createOnce = {
   readOnlyHint: false,
-  destructiveHint: true,
+  destructiveHint: false,
   idempotentHint: false,
   openWorldHint: true,
 };

@@ -200,28 +200,20 @@ If none succeed, the server prints a setup guide and exits.
 
 ```bash
 docker run -i --rm \
-  -e GOOGLE_SERVICE_ACCOUNT_KEY \
-  ghcr.io/stufently/google-webtools-mcp:1.2.0
-```
-
-Put the service account JSON from step 1 in `GOOGLE_SERVICE_ACCOUNT_KEY`, then paste that command. It should print `Server running on stdio` to stderr and wait for a client (Ctrl+C to quit). Every client block below runs this same `docker run`: the secret stays in the client `env`, and `-e GOOGLE_SERVICE_ACCOUNT_KEY` forwards it into the container, so the key is not written on the command line.
-
-The image covers the service account. OAuth does not work in a container on the first run (see [Docker](#docker)); for OAuth, [build from source](#build-from-source).
-
-To mount a key file instead of passing the JSON, replace the `-e` argument with a read-only mount. Docker needs an absolute path:
-
-```bash
-docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
   ghcr.io/stufently/google-webtools-mcp:1.2.0
 ```
 
+Replace `/absolute/path/to/service-account.json` with the key file from step 1 (Docker needs an absolute path), then paste the command. Docker pulls the image on the first run (amd64 and arm64), so nothing else needs installing. It should print `Server running on stdio` to stderr and wait for a client (Ctrl+C to quit). Every client block below runs this same `docker run`; the key file is mounted read-only and never written into the client config.
+
+The image covers the service account. OAuth does not work in a container on the first run (see [Docker](#docker)); for OAuth, [build from source](#build-from-source).
+
 ---
 
 ## Connecting it
 
-Each block below starts the server with `docker` and the arguments from the install command above. Replace the `GOOGLE_SERVICE_ACCOUNT_KEY` placeholder with the service account JSON. Do not commit a real key.
+Each block below starts the server with `docker` and the arguments from the install command above. The only thing to change is `/absolute/path/to/service-account.json`.
 
 ### Claude Code
 
@@ -236,23 +228,23 @@ Project file `.mcp.json`, at the root of the project:
         "run",
         "-i",
         "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
-        "GOOGLE_SERVICE_ACCOUNT_KEY",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
         "ghcr.io/stufently/google-webtools-mcp:1.2.0"
-      ],
-      "env": {
-        "GOOGLE_SERVICE_ACCOUNT_KEY": "<paste the service account JSON here>"
-      }
+      ]
     }
   }
 }
 ```
 
-The same server can be registered from a terminal. The key is the environment variable the command forwards:
+The same server can be registered from a terminal:
 
 ```bash
 claude mcp add google-webtools -- docker run -i --rm \
-  -e GOOGLE_SERVICE_ACCOUNT_KEY \
+  -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
   ghcr.io/stufently/google-webtools-mcp:1.2.0
 ```
 
@@ -271,13 +263,12 @@ Add `--scope user` to make it available in every project.
         "run",
         "-i",
         "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
-        "GOOGLE_SERVICE_ACCOUNT_KEY",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
         "ghcr.io/stufently/google-webtools-mcp:1.2.0"
-      ],
-      "env": {
-        "GOOGLE_SERVICE_ACCOUNT_KEY": "<paste the service account JSON here>"
-      }
+      ]
     }
   }
 }
@@ -298,13 +289,12 @@ Claude Desktop can also install this server in one click. Download the `.mcpb` f
         "run",
         "-i",
         "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
-        "GOOGLE_SERVICE_ACCOUNT_KEY",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
         "ghcr.io/stufently/google-webtools-mcp:1.2.0"
-      ],
-      "env": {
-        "GOOGLE_SERVICE_ACCOUNT_KEY": "<paste the service account JSON here>"
-      }
+      ]
     }
   }
 }
@@ -323,13 +313,12 @@ Claude Desktop can also install this server in one click. Download the `.mcpb` f
         "run",
         "-i",
         "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
-        "GOOGLE_SERVICE_ACCOUNT_KEY",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
         "ghcr.io/stufently/google-webtools-mcp:1.2.0"
-      ],
-      "env": {
-        "GOOGLE_SERVICE_ACCOUNT_KEY": "<paste the service account JSON here>"
-      }
+      ]
     }
   }
 }
@@ -348,13 +337,13 @@ Zed calls MCP servers context servers. The file is `settings.json` (`zed: open s
         "run",
         "-i",
         "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
-        "GOOGLE_SERVICE_ACCOUNT_KEY",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
         "ghcr.io/stufently/google-webtools-mcp:1.2.0"
       ],
-      "env": {
-        "GOOGLE_SERVICE_ACCOUNT_KEY": "<paste the service account JSON here>"
-      }
+      "env": {}
     }
   }
 }
@@ -364,7 +353,8 @@ Zed calls MCP servers context servers. The file is `settings.json` (`zed: open s
 
 ```bash
 codex mcp add google-webtools -- docker run -i --rm \
-  -e GOOGLE_SERVICE_ACCOUNT_KEY \
+  -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
   ghcr.io/stufently/google-webtools-mcp:1.2.0
 ```
 
@@ -375,11 +365,24 @@ Or by hand, in `~/.codex/config.toml`:
 command = "docker"
 args = [
   "run", "-i", "--rm",
-  "-e", "GOOGLE_SERVICE_ACCOUNT_KEY",
+  "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
+  "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
   "ghcr.io/stufently/google-webtools-mcp:1.2.0",
 ]
-env = { GOOGLE_SERVICE_ACCOUNT_KEY = "<paste the service account JSON here>" }
 ```
+
+### Key as a string instead of a file
+
+Where mounting a file is awkward (CI, a remote runner), pass the whole key JSON
+in `GOOGLE_SERVICE_ACCOUNT_KEY` and let Docker forward it from the environment:
+replace the `-v …` and `-e GOOGLE_APPLICATION_CREDENTIALS=…` arguments with
+`-e GOOGLE_SERVICE_ACCOUNT_KEY`, and set the variable in your shell
+(`export GOOGLE_SERVICE_ACCOUNT_KEY="$(cat service-account.json)"`) or in the
+client's `env` block. Inside a JSON or TOML config the key must be a single
+escaped string, not pasted JSON: `jq -c . service-account.json | jq -R .`
+prints it ready to paste. This is
+also what the [MCP registry](https://registry.modelcontextprotocol.io) entry
+`io.github.stufently/google-webtools-mcp` asks for.
 
 ### Build from source
 
@@ -419,7 +422,7 @@ There is no authentication on the HTTP endpoint and it listens on all interfaces
 
 ### Docker
 
-The OAuth consent callback listens on a random port on `127.0.0.1` *inside* the container, so a browser on the host cannot reach it and a first OAuth run in Docker times out. Either use a service account (the install command above, or mount the key and set `GOOGLE_APPLICATION_CREDENTIALS`), or authorize once outside Docker and copy `~/.google-webtools-mcp/token.json` into the token volume.
+The OAuth consent callback listens on a random port on `127.0.0.1` *inside* the container, so a browser on the host cannot reach it and a first OAuth run in Docker times out. Either use a service account (the install command above), or authorize once outside Docker and copy `~/.google-webtools-mcp/token.json` into the token volume.
 
 ```bash
 docker compose up --build

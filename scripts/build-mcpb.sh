@@ -54,9 +54,9 @@ cp "$stage/package.json" "$pack/package.json"
 cp -a "$stage/dist" "$pack/dist"
 cp -a "$stage/node_modules" "$pack/node_modules"
 
-# Drop type declarations and source maps again in case the copy raced, and
-# keep TypeScript sources, env files, and caches out of the archive.
-find "$pack" \( -name "*.d.ts" -o -name "*.map" -o -name ".env" -o -name ".env.*" \) -delete
+# Keep TypeScript files (declarations and sources shipped by dependencies),
+# source maps, env files, and caches out of the archive. Runtime is .js only.
+find "$pack" \( -name "*.ts" -o -name "*.mts" -o -name "*.cts" -o -name "*.map" -o -name ".env" -o -name ".env.*" \) -delete
 find "$pack" -type d \( -name __pycache__ -o -name .git \) -exec rm -rf {} +
 
 creds="$work/sa.json"
@@ -114,9 +114,11 @@ def request(method, params, timeout):
                 err = proc.stderr.read().decode("utf-8", "replace")[-2000:]
                 raise SystemExit("server closed stdout during %s; stderr: %s" % (method, err))
             buf += chunk
+    # Stop the server first: reading stderr of a live process would block.
+    proc.kill()
     err = b""
     try:
-        err = proc.stderr.read()
+        err = proc.communicate(timeout=10)[1] or b""
     except Exception:
         pass
     raise SystemExit("timeout waiting for %s; stderr: %s" % (method, err.decode("utf-8", "replace")[-2000:]))
