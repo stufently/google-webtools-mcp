@@ -1,0 +1,34 @@
+name: MCPB
+
+# Attach the Desktop Extension to the GitHub Release for a version tag.
+# The container image and the MCP registry entry stay in publish.yml.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  mcpb:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build the mcpb bundle
+        run: bash scripts/build-mcpb.sh
+
+      - name: Create the GitHub release if it does not exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --json tagName >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --verify-tag --notes "Desktop extension for ${GITHUB_REF_NAME}."
+          fi
+
+      - name: Upload the mcpb bundle
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" dist-mcpb/*.mcpb --clobber

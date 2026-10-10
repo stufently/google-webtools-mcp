@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly } from '../annotations.js';
 import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import {
@@ -141,7 +142,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
   // ========================================================================
   server.tool(
     'get_search_analytics',
-    'Query raw Google Search Console search analytics data with flexible parameters',
+    'Query raw Google Search Console search analytics with explicit dates, dimensions, filters, search type, row limit, and data state. Use when the user needs a custom breakdown that the shaped reports do not offer. Call get_performance_summary for a period overview, call get_top_queries or get_top_pages for a ranking, and call compare_periods for two named date ranges.',
     {
       siteUrl: siteUrlSchema,
       startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('Start date in YYYY-MM-DD format'),
@@ -153,6 +154,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
       dataState: dataStateSchema.optional().default('all'),
       aggregationType: aggregationTypeSchema.optional().default('auto'),
     },
+    readOnly,
     async (params) => {
       try {
         const dimensionFilterGroups: DimensionFilterGroup[] | undefined =
@@ -247,12 +249,13 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
   // ========================================================================
   server.tool(
     'get_performance_summary',
-    'Get a high-level performance overview with period-over-period comparison',
+    'Summarize clicks, impressions, CTR, and average position for one property against the previous period of the same length. Use when the user asks how search traffic is doing over a named period such as the last 28 days. Call compare_periods when they name two specific date ranges, and call get_search_analytics when they need the raw rows.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.optional().default('last28d'),
       searchType: searchTypeSchema.optional().default('web'),
     },
+    readOnly,
     async (params) => {
       try {
         const currentRange = await resolveReportingRange(api, params.siteUrl, params.period, { searchType: params.searchType });
@@ -336,7 +339,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
   // ========================================================================
   server.tool(
     'compare_periods',
-    'Compare search performance between two custom date periods side by side',
+    'Compare Search Console clicks, impressions, CTR, and position between two explicit date ranges, optionally grouped by a dimension. Use when the user names a before and an after, such as a release or a season. Call get_performance_summary when they want the latest period against the one just before it, without choosing dates.',
     {
       siteUrl: siteUrlSchema,
       period1StartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('Period 1 start date (YYYY-MM-DD)'),
@@ -346,6 +349,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
       dimensions: z.array(dimensionSchema).optional().describe('Dimensions to group by'),
       searchType: searchTypeSchema.optional().default('web'),
     },
+    readOnly,
     async (params) => {
       try {
         const baseRequest = {
@@ -477,7 +481,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
   // ========================================================================
   server.tool(
     'get_top_queries',
-    'Get top search queries by clicks with CTR benchmark analysis',
+    'List the top Search Console queries by clicks and score each query against the CTR benchmark for its position. Use when the user asks which queries bring traffic or which queries underperform their rank. Call get_top_pages for pages rather than queries, and call find_quick_wins for opportunity buckets instead of a plain ranking.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.optional().default('last28d'),
@@ -487,6 +491,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
       country: z.string().optional().describe('Filter by country code (e.g. "USA", "GBR")'),
       limit: z.number().min(1).max(25000).optional().default(20).describe('Number of top queries to return'),
     },
+    readOnly,
     async (params) => {
       try {
         const dateRange = await resolveReportingRange(api, params.siteUrl, params.period, { searchType: params.searchType });
@@ -584,7 +589,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
   // ========================================================================
   server.tool(
     'get_top_pages',
-    'Get top pages by clicks with CTR analysis',
+    'List the top Search Console pages by clicks and score each page against the CTR benchmark for its position. Use when the user asks which URLs earn the search traffic. Call get_top_queries for queries, call get_traffic_by_device for a device split, and call find_ctr_opportunities for pages far below the benchmark.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.optional().default('last28d'),
@@ -593,6 +598,7 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
       query: z.string().optional().describe('Filter to pages matching a specific query (contains match)'),
       limit: z.number().min(1).max(25000).optional().default(20).describe('Number of top pages to return'),
     },
+    readOnly,
     async (params) => {
       try {
         const dateRange = await resolveReportingRange(api, params.siteUrl, params.period, { searchType: params.searchType });
@@ -694,12 +700,13 @@ export function registerPerformanceTools(server: McpServer, api: GscApiClient): 
   // ========================================================================
   server.tool(
     'get_traffic_by_device',
-    'Get traffic breakdown by device type (desktop, mobile, tablet)',
+    'Split Search Console clicks, impressions, CTR, and average position across desktop, mobile, and tablet. Use when the user asks whether one device is underperforming the others. Call get_top_pages or get_top_queries when they want the pages or queries behind that device split.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.optional().default('last28d'),
       searchType: searchTypeSchema.optional().default('web'),
     },
+    readOnly,
     async (params) => {
       try {
         const dateRange = await resolveReportingRange(api, params.siteUrl, params.period, { searchType: params.searchType });

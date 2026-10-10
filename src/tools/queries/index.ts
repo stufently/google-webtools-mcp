@@ -8,6 +8,7 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly } from '../annotations.js';
 import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import type { SearchAnalyticsRow } from '../../api/types.js';
@@ -145,7 +146,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
   // =========================================================================
   server.tool(
     'analyze_query_landscape',
-    'Categorize all queries by user intent, branded vs non-branded split, and position distribution',
+    'Classify the Search Console queries of a property by intent, branded versus non-branded demand, and position band. Use when the user wants the shape of search demand rather than a list of winners. Call find_new_queries for queries that just appeared, and call find_cannibalization when several pages share one query.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
@@ -157,6 +158,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
         .default(5)
         .describe('Minimum impressions for a query to be included'),
     },
+    readOnly,
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
         const { startDate, endDate } = await resolveReportingRange(api, siteUrl, period, { searchType: searchType ?? 'web' });
@@ -362,7 +364,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
   // =========================================================================
   server.tool(
     'find_new_queries',
-    'Find truly new and rapidly emerging queries by comparing the current period against the previous period',
+    'Find queries that are new or rising fast by diffing this Search Console period against the previous one. Use when the user asks what people started searching recently. Call analyze_query_landscape for the overall mix of intent, and call find_what_to_build_next when they want those queries grouped into topics to write.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
@@ -374,6 +376,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
         .default(5)
         .describe('Minimum impressions in the current period to be included'),
     },
+    readOnly,
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
         const currentRange = await resolveReportingRange(api, siteUrl, period, { searchType: searchType ?? 'web' });
@@ -588,7 +591,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
   // =========================================================================
   server.tool(
     'find_cannibalization',
-    'Detect keyword cannibalization: multiple pages competing for the same query',
+    'Detect queries where more than one page of the property ranks, and name the page that wins the clicks. Use when the user asks whether their own pages compete for the same query. Call find_content_gaps when the query lands on the wrong page, and call get_top_pages for a plain page ranking.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
@@ -610,6 +613,7 @@ export function registerQueryTools(server: McpServer, api: GscApiClient): void {
           'Minimum impressions one page needs before it counts as a real contender. Queries where only a single page clears this bar are reported as low-volume and get no consolidation advice.',
         ),
     },
+    readOnly,
     async ({ siteUrl, period, searchType, minImpressions, minPageImpressions }) => {
       try {
         const { startDate, endDate } = await resolveReportingRange(api, siteUrl, period, { searchType: searchType ?? 'web' });

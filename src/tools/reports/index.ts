@@ -9,6 +9,7 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly } from '../annotations.js';
 import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import type {
@@ -130,11 +131,12 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
 
   server.tool(
     'weekly_seo_report',
-    'Generate a comprehensive weekly SEO performance report with trends, growers, decliners, quick wins, sitemap health, and prioritized recommendations',
+    'Build a one-call weekly SEO digest with traffic versus last week, growers, decliners, quick wins, sitemap health, and prioritized actions. Use when the user asks for a weekly report or a regular status update. Call seo_health_check for a letter grade, and call get_performance_summary when they only want the headline numbers.',
     {
       siteUrl: siteUrlSchema,
       searchType: searchTypeSchema,
     },
+    readOnly,
     async ({ siteUrl, searchType }) => {
       try {
         const type = (searchType ?? 'web') as SearchType;
@@ -596,11 +598,12 @@ export function registerReportTools(server: McpServer, api: GscApiClient): void 
 
   server.tool(
     'seo_health_check',
-    'Run a comprehensive SEO health check with an overall A-F letter grade, sub-scores for traffic trends, CTR efficiency, position distribution, and sitemap health, plus prioritized recommendations',
+    'Score a Search Console property from A to F, with sub-scores for traffic trend, CTR efficiency, position distribution, and sitemap health. Use when the user asks how healthy the site is in search or wants a grade. Call weekly_seo_report for the narrative digest, and call find_declining_content when they already know traffic fell.',
     {
       siteUrl: siteUrlSchema,
       searchType: searchTypeSchema,
     },
+    readOnly,
     async ({ siteUrl, searchType }) => {
       try {
         const type = (searchType ?? 'web') as SearchType;

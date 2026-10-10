@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly, addOnly, remove } from '../annotations.js';
 import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import { siteUrlSchema, createToolResponse, formatToolResponse } from '../schemas.js';
@@ -13,8 +14,9 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
   // ── list_sitemaps ────────────────────────────────────────────────────
   server.tool(
     'list_sitemaps',
-    'List all sitemaps submitted for a Google Search Console property',
+    'List the sitemaps submitted for one Google Search Console property, with status, URL counts, and error flags. Use when the user asks which sitemaps are filed or whether Google reports sitemap problems. Call get_sitemap_details to open one feed, and call submit_sitemap only when they want to file a sitemap.',
     { siteUrl: siteUrlSchema },
+    readOnly,
     async ({ siteUrl }) => {
       try {
         const sitemaps = await api.listSitemaps(siteUrl);
@@ -76,8 +78,9 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
   // ── get_sitemap_details ──────────────────────────────────────────────
   server.tool(
     'get_sitemap_details',
-    'Get detailed information about a specific sitemap including URL counts by content type',
+    'Read one submitted sitemap, including its type, last download, URL counts by content type, and error and warning totals. Use when the user names a sitemap and wants its processing status. Call list_sitemaps when they do not yet know which feed to open.',
     { siteUrl: siteUrlSchema, feedpath: feedpathSchema },
+    readOnly,
     async ({ siteUrl, feedpath }) => {
       try {
         const sm = await api.getSitemap(siteUrl, feedpath);
@@ -152,8 +155,9 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
   // ── submit_sitemap ───────────────────────────────────────────────────
   server.tool(
     'submit_sitemap',
-    'Submit a new sitemap to Google Search Console for a property',
+    'Submit a sitemap URL to Google Search Console so Google can discover the pages of that property. Use when the user has published or moved a sitemap and asks to file it. Submitting the same feed again refreshes it and does not delete anything. Call delete_sitemap to withdraw a feed, and call get_sitemap_details to check processing afterwards.',
     { siteUrl: siteUrlSchema, feedpath: feedpathSchema },
+    addOnly,
     async ({ siteUrl, feedpath }) => {
       try {
         await api.submitSitemap(siteUrl, feedpath);
@@ -187,8 +191,9 @@ export function registerSitemapTools(server: McpServer, api: GscApiClient): void
   // ── delete_sitemap ───────────────────────────────────────────────────
   server.tool(
     'delete_sitemap',
-    'Remove a submitted sitemap from Google Search Console',
+    'Withdraw a previously submitted sitemap from a Google Search Console property. Use when the user asks to remove a stale, duplicated, or broken sitemap. Removing the sitemap does not drop its URLs from the Google index. Call submit_sitemap to file that feed again, and call list_sitemaps to see what is still submitted.',
     { siteUrl: siteUrlSchema, feedpath: feedpathSchema },
+    remove,
     async ({ siteUrl, feedpath }) => {
       try {
         await api.deleteSitemap(siteUrl, feedpath);

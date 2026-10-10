@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly, addOnly, remove } from '../annotations.js';
 import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import { siteUrlSchema, createToolResponse, formatToolResponse } from '../schemas.js';
@@ -15,8 +16,9 @@ export function registerSiteTools(server: McpServer, api: GscApiClient): void {
   // ── list_properties ──────────────────────────────────────────────────
   server.tool(
     'list_properties',
-    'List all Google Search Console properties with permission levels and types',
+    'List every Google Search Console property the credentials can access, including each property type and permission level. Use when the user wants to see which sites they can query before choosing one. Call get_property_details for a single known property, and call add_property only when they ask to register a new site.',
     {},
+    readOnly,
     async () => {
       try {
         const sites = await api.listSites();
@@ -52,8 +54,9 @@ export function registerSiteTools(server: McpServer, api: GscApiClient): void {
   // ── get_property_details ─────────────────────────────────────────────
   server.tool(
     'get_property_details',
-    'Get detailed information for a specific Google Search Console property',
+    'Read the type, permission level, and verification state of one Google Search Console property. Use when the user names a specific site and wants to know how that property is registered. Call list_properties when the property URL is not known yet.',
     { siteUrl: siteUrlSchema },
+    readOnly,
     async ({ siteUrl }) => {
       try {
         const site = await api.getSite(siteUrl);
@@ -98,8 +101,9 @@ export function registerSiteTools(server: McpServer, api: GscApiClient): void {
   // ── add_property ─────────────────────────────────────────────────────
   server.tool(
     'add_property',
-    'Add a new site property to Google Search Console',
+    'Register a site URL or a domain as a Google Search Console property on the authenticated account. Use when the user asks to add a site to Search Console. Adding a property does not verify it. Call gsc_get_verification_token and then gsc_verify_site to prove ownership, and call list_properties to see sites that are already listed.',
     { siteUrl: siteUrlSchema },
+    addOnly,
     async ({ siteUrl }) => {
       try {
         await api.addSite(siteUrl);
@@ -135,8 +139,9 @@ export function registerSiteTools(server: McpServer, api: GscApiClient): void {
   // ── delete_property ──────────────────────────────────────────────────
   server.tool(
     'delete_property',
-    'Remove a site property from Google Search Console (permanent)',
+    'Remove a Google Search Console property from the authenticated account site list. Use when the user explicitly asks to drop a property. The property can be added back later, and this call does not erase historical data held by Google. Call delete_sitemap to withdraw a sitemap instead, and call add_property to register the site again.',
     { siteUrl: siteUrlSchema },
+    remove,
     async ({ siteUrl }) => {
       try {
         await api.deleteSite(siteUrl);

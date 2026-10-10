@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly } from '../annotations.js';
 import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import { siteUrlSchema, createToolResponse, formatToolResponse } from '../schemas.js';
@@ -476,11 +477,12 @@ export function registerIndexingTools(server: McpServer, api: GscApiClient): voi
 
   server.tool(
     'inspect_url',
-    'Inspect a single URL for indexing status, mobile usability, and rich results',
+    'Inspect one URL in the Google Search Console index for coverage, mobile usability, and rich-result verdicts, including the issues behind a failure. Use when the user asks why a single URL is missing from search or looks wrong. Call batch_inspect_urls for a list of URLs, and call check_indexing_issues to audit the top traffic pages of the property.',
     {
       siteUrl: siteUrlSchema,
       url: z.string().url().describe('The fully qualified URL to inspect'),
     },
+    readOnly,
     async ({ siteUrl, url }) => {
       try {
         const result = await api.inspectUrl(siteUrl, url);
@@ -510,11 +512,12 @@ export function registerIndexingTools(server: McpServer, api: GscApiClient): voi
 
   server.tool(
     'batch_inspect_urls',
-    'Inspect multiple URLs for indexing status in batch (max 50)',
+    'Inspect up to 50 URLs in one call for index coverage, mobile usability, and rich-result verdicts. Use when the user hands over a list of URLs to check. Call inspect_url for a single URL, and call check_indexing_issues when they want the top traffic pages audited without supplying the list.',
     {
       siteUrl: siteUrlSchema,
       urls: z.array(z.string().url()).min(1).max(50).describe('Array of URLs to inspect (max 50)'),
     },
+    readOnly,
     async ({ siteUrl, urls }) => {
       try {
         if (urls.length > 50) {
@@ -631,11 +634,12 @@ export function registerIndexingTools(server: McpServer, api: GscApiClient): voi
 
   server.tool(
     'check_indexing_issues',
-    'Audit top pages by traffic for indexing issues, canonical mismatches, and mobile problems',
+    'Audit the top traffic pages of a property for indexing failures, canonical mismatches, missing canonicals, and mobile problems. Use when the user wants an indexing health pass rather than a check of URLs they already named. Call inspect_url or batch_inspect_urls when they already have the URL list.',
     {
       siteUrl: siteUrlSchema,
       limit: z.number().min(1).max(100).default(20).describe('Number of top pages to check (default 20, max 100)'),
     },
+    readOnly,
     async ({ siteUrl, limit }) => {
       try {
         // Step 1: Fetch top pages by impressions
