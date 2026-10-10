@@ -1,0 +1,1381 @@
+[
+ {
+  "name": "list_properties",
+  "inputSchema": {
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "get_property_details",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "add_property",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "delete_property",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "list_sitemaps",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_sitemap_details",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "feedpath": {
+     "type": "string",
+     "description": "The URL of the sitemap (e.g., \"https://example.com/sitemap.xml\")"
+    }
+   },
+   "required": [
+    "siteUrl",
+    "feedpath"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "submit_sitemap",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "feedpath": {
+     "type": "string",
+     "description": "The URL of the sitemap (e.g., \"https://example.com/sitemap.xml\")"
+    }
+   },
+   "required": [
+    "siteUrl",
+    "feedpath"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "delete_sitemap",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "feedpath": {
+     "type": "string",
+     "description": "The URL of the sitemap (e.g., \"https://example.com/sitemap.xml\")"
+    }
+   },
+   "required": [
+    "siteUrl",
+    "feedpath"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_search_analytics",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "startDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+     "description": "Start date in YYYY-MM-DD format"
+    },
+    "endDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+     "description": "End date in YYYY-MM-DD format"
+    },
+    "dimensions": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "enum": [
+       "date",
+       "query",
+       "page",
+       "country",
+       "device",
+       "searchAppearance"
+      ],
+      "description": "Dimension to group results by"
+     },
+     "description": "Dimensions to group by (e.g. query, page, date, country, device, searchAppearance)"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "filters": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "dimension": {
+        "type": "string",
+        "description": "Dimension to filter on (query, page, country, device, searchAppearance)"
+       },
+       "operator": {
+        "type": "string",
+        "enum": [
+         "contains",
+         "equals",
+         "notContains",
+         "notEquals",
+         "includingRegex",
+         "excludingRegex"
+        ],
+        "default": "contains"
+       },
+       "expression": {
+        "type": "string",
+        "description": "Filter expression value"
+       }
+      },
+      "required": [
+       "dimension",
+       "expression"
+      ],
+      "additionalProperties": false
+     },
+     "description": "Dimension filters to apply"
+    },
+    "rowLimit": {
+     "type": "number",
+     "minimum": 1,
+     "maximum": 25000,
+     "default": 1000,
+     "description": "Maximum rows to return (1-25000)"
+    },
+    "dataState": {
+     "type": "string",
+     "enum": [
+      "all",
+      "final"
+     ],
+     "default": "all",
+     "description": "\"final\" = finalized data only (the API's own default; the newest days are simply absent until they settle), \"all\" = also includes the freshest days, whose numbers may still change"
+    },
+    "aggregationType": {
+     "type": "string",
+     "enum": [
+      "auto",
+      "byPage",
+      "byProperty"
+     ],
+     "default": "auto"
+    }
+   },
+   "required": [
+    "siteUrl",
+    "startDate",
+    "endDate"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_performance_summary",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "compare_periods",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period1StartDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+     "description": "Period 1 start date (YYYY-MM-DD)"
+    },
+    "period1EndDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+     "description": "Period 1 end date (YYYY-MM-DD)"
+    },
+    "period2StartDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+     "description": "Period 2 start date (YYYY-MM-DD)"
+    },
+    "period2EndDate": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+     "description": "Period 2 end date (YYYY-MM-DD)"
+    },
+    "dimensions": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "enum": [
+       "date",
+       "query",
+       "page",
+       "country",
+       "device",
+       "searchAppearance"
+      ],
+      "description": "Dimension to group results by"
+     },
+     "description": "Dimensions to group by"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    }
+   },
+   "required": [
+    "siteUrl",
+    "period1StartDate",
+    "period1EndDate",
+    "period2StartDate",
+    "period2EndDate"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_top_queries",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "device": {
+     "type": "string",
+     "enum": [
+      "DESKTOP",
+      "MOBILE",
+      "TABLET"
+     ],
+     "description": "Filter by device type"
+    },
+    "page": {
+     "type": "string",
+     "description": "Filter to a specific page URL (contains match)"
+    },
+    "country": {
+     "type": "string",
+     "description": "Filter by country code (e.g. \"USA\", \"GBR\")"
+    },
+    "limit": {
+     "type": "number",
+     "minimum": 1,
+     "maximum": 25000,
+     "default": 20,
+     "description": "Number of top queries to return"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_top_pages",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "device": {
+     "type": "string",
+     "enum": [
+      "DESKTOP",
+      "MOBILE",
+      "TABLET"
+     ],
+     "description": "Filter by device type"
+    },
+    "query": {
+     "type": "string",
+     "description": "Filter to pages matching a specific query (contains match)"
+    },
+    "limit": {
+     "type": "number",
+     "minimum": 1,
+     "maximum": 25000,
+     "default": 20,
+     "description": "Number of top pages to return"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "get_traffic_by_device",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "find_quick_wins",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "minImpressions": {
+     "type": "number",
+     "minimum": 0,
+     "default": 100,
+     "description": "Minimum impressions to consider a query"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "find_declining_content",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "minClicksInPrevious": {
+     "type": "number",
+     "minimum": 0,
+     "default": 10,
+     "description": "Minimum clicks in the previous period to consider a page or query"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "find_ctr_opportunities",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "minImpressions": {
+     "type": "number",
+     "minimum": 0,
+     "default": 50,
+     "description": "Minimum impressions to include a page"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "find_content_gaps",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "minImpressions": {
+     "type": "number",
+     "minimum": 0,
+     "default": 20,
+     "description": "Minimum impressions to consider a query"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "find_what_to_build_next",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "minImpressions": {
+     "type": "number",
+     "minimum": 0,
+     "default": 10,
+     "description": "Minimum impressions to consider a query"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "inspect_url",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "url": {
+     "type": "string",
+     "format": "uri",
+     "description": "The fully qualified URL to inspect"
+    }
+   },
+   "required": [
+    "siteUrl",
+    "url"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "batch_inspect_urls",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "urls": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "format": "uri"
+     },
+     "minItems": 1,
+     "maxItems": 50,
+     "description": "Array of URLs to inspect (max 50)"
+    }
+   },
+   "required": [
+    "siteUrl",
+    "urls"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "check_indexing_issues",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "limit": {
+     "type": "number",
+     "minimum": 1,
+     "maximum": 100,
+     "default": 20,
+     "description": "Number of top pages to check (default 20, max 100)"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "analyze_query_landscape",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "minImpressions": {
+     "type": "integer",
+     "minimum": 0,
+     "default": 5,
+     "description": "Minimum impressions for a query to be included"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "find_new_queries",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "minImpressions": {
+     "type": "integer",
+     "minimum": 0,
+     "default": 5,
+     "description": "Minimum impressions in the current period to be included"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "find_cannibalization",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "period": {
+     "type": "string",
+     "enum": [
+      "last7d",
+      "last28d",
+      "last3m",
+      "last6m",
+      "last12m",
+      "last16m"
+     ],
+     "description": "Predefined date range period",
+     "default": "last28d"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    },
+    "minImpressions": {
+     "type": "integer",
+     "minimum": 0,
+     "default": 20,
+     "description": "Minimum total impressions for a query to be evaluated for cannibalization"
+    },
+    "minPageImpressions": {
+     "type": "integer",
+     "minimum": 0,
+     "default": 30,
+     "description": "Minimum impressions one page needs before it counts as a real contender. Queries where only a single page clears this bar are reported as low-volume and get no consolidation advice."
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "weekly_seo_report",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "seo_health_check",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "siteUrl": {
+     "type": "string",
+     "description": "The site URL exactly as it appears in Google Search Console (e.g., \"https://example.com/\" or \"sc-domain:example.com\")"
+    },
+    "searchType": {
+     "type": "string",
+     "enum": [
+      "web",
+      "image",
+      "video",
+      "news",
+      "discover",
+      "googleNews"
+     ],
+     "default": "web",
+     "description": "Search type to analyze"
+    }
+   },
+   "required": [
+    "siteUrl"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "ga4_list_accounts",
+  "inputSchema": {
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "type": "object",
+   "properties": {}
+  }
+ },
+ {
+  "name": "ga4_list_properties",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "account_id": {
+     "type": "string",
+     "description": "GA4 account ID (e.g., \"123456\" or \"accounts/123456\")"
+    }
+   },
+   "required": [
+    "account_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "ga4_get_property",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "property_id": {
+     "type": "string",
+     "description": "GA4 property ID (e.g., \"123456\" or \"properties/123456\")"
+    }
+   },
+   "required": [
+    "property_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "ga4_create_property",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "account_id": {
+     "type": "string",
+     "description": "GA4 account ID (e.g., \"123456\" or \"accounts/123456\")"
+    },
+    "display_name": {
+     "type": "string",
+     "description": "Display name for the new property"
+    },
+    "timezone": {
+     "type": "string",
+     "description": "Reporting timezone (e.g., \"America/New_York\", \"Europe/Moscow\")"
+    },
+    "currency_code": {
+     "type": "string",
+     "default": "USD",
+     "description": "Currency code (e.g., \"USD\", \"EUR\")"
+    },
+    "industry_category": {
+     "type": "string",
+     "description": "Industry category (e.g., \"TECHNOLOGY\", \"FINANCE\")"
+    }
+   },
+   "required": [
+    "account_id",
+    "display_name",
+    "timezone"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "ga4_create_data_stream",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "property_id": {
+     "type": "string",
+     "description": "GA4 property ID (e.g., \"123456\" or \"properties/123456\")"
+    },
+    "url": {
+     "type": "string",
+     "description": "Website URL for the data stream (e.g., \"https://example.com\")"
+    },
+    "stream_name": {
+     "type": "string",
+     "description": "Display name for the stream (defaults to hostname)"
+    }
+   },
+   "required": [
+    "property_id",
+    "url"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "ga4_list_data_streams",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "property_id": {
+     "type": "string",
+     "description": "GA4 property ID (e.g., \"123456\" or \"properties/123456\")"
+    }
+   },
+   "required": [
+    "property_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "ga4_get_data_stream",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "property_id": {
+     "type": "string",
+     "description": "GA4 property ID (e.g., \"123456\" or \"properties/123456\")"
+    },
+    "stream_id": {
+     "type": "string",
+     "description": "Data stream ID (numeric, e.g., \"789012\")"
+    }
+   },
+   "required": [
+    "property_id",
+    "stream_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "ga4_run_report",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "property_id": {
+     "type": "string",
+     "description": "GA4 property ID (e.g., \"123456\" or \"properties/123456\")"
+    },
+    "start_date": {
+     "type": "string",
+     "pattern": "^(\\d{4}-\\d{2}-\\d{2}|\\d+daysAgo|yesterday|today)$",
+     "description": "Start date: YYYY-MM-DD or relative (\"7daysAgo\", \"30daysAgo\", \"yesterday\", \"today\")"
+    },
+    "end_date": {
+     "type": "string",
+     "pattern": "^(\\d{4}-\\d{2}-\\d{2}|\\d+daysAgo|yesterday|today)$",
+     "description": "End date: YYYY-MM-DD or relative (\"yesterday\", \"today\")"
+    },
+    "metrics": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "minItems": 1,
+     "description": "Metrics to retrieve (e.g., [\"activeUsers\", \"sessions\", \"screenPageViews\"])"
+    },
+    "dimensions": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Dimensions to group by (e.g., [\"date\", \"country\", \"pagePath\"])"
+    },
+    "limit": {
+     "type": "number",
+     "minimum": 1,
+     "maximum": 100000,
+     "default": 100,
+     "description": "Maximum rows to return (1-100000, default 100)"
+    }
+   },
+   "required": [
+    "property_id",
+    "start_date",
+    "end_date",
+    "metrics"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "ga4_run_realtime_report",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "property_id": {
+     "type": "string",
+     "description": "GA4 property ID (e.g., \"123456\" or \"properties/123456\")"
+    },
+    "metrics": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "minItems": 1,
+     "description": "Realtime metrics (e.g., [\"activeUsers\", \"screenPageViews\", \"conversions\"])"
+    },
+    "dimensions": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Realtime dimensions (e.g., [\"country\", \"city\", \"unifiedScreenName\"])"
+    }
+   },
+   "required": [
+    "property_id",
+    "metrics"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "ga4_get_metadata",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "property_id": {
+     "type": "string",
+     "description": "GA4 property ID (e.g., \"123456\" or \"properties/123456\")"
+    }
+   },
+   "required": [
+    "property_id"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "gsc_get_verification_token",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "site_url": {
+     "type": "string",
+     "description": "Site URL or domain to verify (e.g., \"https://example.com/\" or \"example.com\" for domain verification)"
+    },
+    "method": {
+     "type": "string",
+     "enum": [
+      "FILE",
+      "DNS_TXT",
+      "META",
+      "ANALYTICS"
+     ],
+     "description": "Verification method to use"
+    }
+   },
+   "required": [
+    "site_url",
+    "method"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ },
+ {
+  "name": "gsc_verify_site",
+  "inputSchema": {
+   "type": "object",
+   "properties": {
+    "site_url": {
+     "type": "string",
+     "description": "Site URL or domain to verify (e.g., \"https://example.com/\" or \"example.com\")"
+    },
+    "method": {
+     "type": "string",
+     "enum": [
+      "FILE",
+      "DNS_TXT",
+      "META",
+      "ANALYTICS"
+     ],
+     "description": "Verification method that was configured"
+    }
+   },
+   "required": [
+    "site_url",
+    "method"
+   ],
+   "additionalProperties": false,
+   "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+ }
+]
