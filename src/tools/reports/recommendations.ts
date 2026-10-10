@@ -49,21 +49,26 @@ export function toGscRows(rows: readonly SearchAnalyticsRow[]): GscRow[] {
  * Prioritized, deduplicated recommendations for query+page rows.
  *
  * CTR is judged against the position benchmark, not the engine's flat 5%
- * fallback. Consolidation advice is kept only for queries that
- * find_cannibalization would call actionable (two or more pages with real
- * volume): the engine alone proposes merging any two pages that share a query,
- * including a strong page and one seen a handful of times.
+ * fallback. Consolidation advice uses only the pages find_cannibalization
+ * counts as contenders (enough impressions to mean something) of queries it
+ * calls actionable: the engine alone proposes merging every page that shares a
+ * query, including one seen a handful of times.
  */
 export function buildReportRecommendations(rows: readonly SearchAnalyticsRow[]): Recommendation[] {
   const gscRows = toGscRows(rows);
   const ctrAnalyses = gscRows.map((r) => analyzeCtr(r.position, r.ctr));
-  const actionableQueries = new Set(
+  const contenderKeys = new Set(
     buildCannibalizationCases(rows, { minImpressions: CONSOLIDATION_MIN_QUERY_IMPRESSIONS })
       .filter((c) => c.actionable)
-      .map((c) => c.query),
+      .flatMap((c) => c.contenders.map((p) => `${c.query}::${p.url}`)),
   );
-  const recs = generateRecommendations({ rows: gscRows, ctrAnalyses }).filter(
-    (r) => r.type !== 'consolidation' || actionableQueries.has(r.data.query as string),
+  const contenderRows = gscRows.filter((r) => contenderKeys.has(`${r.query}::${r.page}`));
+
+  const perRow = generateRecommendations({ rows: gscRows, ctrAnalyses }).filter(
+    (r) => r.type !== 'consolidation',
   );
-  return deduplicateRecommendations(recs);
+  const consolidation = generateRecommendations({ rows: contenderRows }).filter(
+    (r) => r.type === 'consolidation',
+  );
+  return deduplicateRecommendations([...perRow, ...consolidation]);
 }

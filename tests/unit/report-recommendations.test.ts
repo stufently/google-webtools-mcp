@@ -117,4 +117,23 @@ describe('buildReportRecommendations', () => {
     };
     expect(buildReportRecommendations([a, b]).map((r) => r.type)).toContain('consolidation');
   });
+
+  it('leaves low-volume pages out of the consolidation advice (1399/400/10)', () => {
+    const a: SearchAnalyticsRow = {
+      keys: ['red shoes', 'https://example.com/red-shoes'], clicks: 300, impressions: 1399, ctr: 0.21, position: 2,
+    };
+    const b: SearchAnalyticsRow = {
+      keys: ['red shoes', 'https://example.com/shoes-red'], clicks: 5, impressions: 400, ctr: 0.0125, position: 9,
+    };
+    const stray: SearchAnalyticsRow = {
+      keys: ['red shoes', 'https://example.com/other-product'], clicks: 0, impressions: 10, ctr: 0, position: 30,
+    };
+    const consolidation = buildReportRecommendations([a, b, stray]).filter((r) => r.type === 'consolidation');
+    expect(consolidation).toHaveLength(1);
+    expect(consolidation[0]!.data.pages).toEqual([
+      'https://example.com/red-shoes',
+      'https://example.com/shoes-red',
+    ]);
+    expect(consolidation[0]!.description).not.toContain('other-product');
+  });
 });

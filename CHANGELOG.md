@@ -6,7 +6,7 @@ All notable changes to this project are documented here.
 
 ### Fixed
 
-- `weekly_seo_report` and `seo_health_check` always printed "no recommendations": the recommendation engine was called with no rows. Both now fetch the period's query+page rows (up to 5000) and list the top recommendations, deduplicated and sorted by priority. CTR is judged against the position benchmark, and consolidation advice appears only when two or more pages carry real volume for a query (the same bar as `find_cannibalization`). The `weekly_seo_report` description mentions recommendations again.
+- `weekly_seo_report` and `seo_health_check` always printed "no recommendations": the recommendation engine was called with no rows. Both now fetch the period's query+page rows (up to 5000) and list the top recommendations, deduplicated and sorted by priority. CTR is judged against the position benchmark, and consolidation advice appears only when two or more pages carry real volume for a query (the same bar as `find_cannibalization`). Pages below that bar are left out of the consolidation advice itself. The `weekly_seo_report` description mentions recommendations again.
 - `batch_inspect_urls` description now says which fields each group shows: last crawl for indexed URLs; verdict, robots.txt and page fetch state for not-indexed ones.
 - `scripts/build-mcpb.sh` names the tools/list container and removes it with `docker rm -f` on timeout; killing only the docker client could leave the container running.
 
