@@ -7,6 +7,7 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly } from '../annotations.js';
 import { z } from 'zod';
 import { GscApiClient } from '../../api/client.js';
 import type { SearchAnalyticsRow, SearchAnalyticsRequest } from '../../api/types.js';
@@ -270,13 +271,14 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
   // =========================================================================
   server.tool(
     'find_quick_wins',
-    'Find "money on the table" SEO opportunities as query/page pairs: those ranking well but underperforming on clicks, those almost on page 1, and positions where a small push yields big gains',
+    'Find query and page pairs that rank well but are under-clicked, sit just off page one, or would gain clicks from a small position push. Use when the user asks where search traffic is being left on the table. Call find_ctr_opportunities for page-level CTR gaps, and call find_declining_content when the problem is traffic that is already falling.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
       searchType: searchTypeSchema.optional(),
       minImpressions: z.number().min(0).default(100).describe('Minimum impressions to consider a query'),
     },
+    readOnly,
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
         const dateRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);
@@ -410,13 +412,14 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
   // =========================================================================
   server.tool(
     'find_declining_content',
-    'Find pages and queries losing traffic: compares the current period against the previous one, reporting declining pages and declining queries as two separate rankings, to surface content that needs attention before it drops further',
+    'Compare the current Search Console period with the previous one and rank the pages and the queries that lost clicks. Use when the user asks what stopped getting traffic or what dropped recently. Call find_quick_wins for under-clicked rankings that are not necessarily declining, and call weekly_seo_report for a full weekly digest.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
       searchType: searchTypeSchema.optional(),
       minClicksInPrevious: z.number().min(0).default(10).describe('Minimum clicks in the previous period to consider a page or query'),
     },
+    readOnly,
     async ({ siteUrl, period, searchType, minClicksInPrevious }) => {
       try {
         const currentRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);
@@ -630,13 +633,14 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
   // =========================================================================
   server.tool(
     'find_ctr_opportunities',
-    'Find pages with click-through rates significantly below industry benchmarks for their position, with specific recommendations to improve each one',
+    'Find pages whose Search Console click-through rate sits well below the benchmark for their average position, with a fix note for each page. Use when the user asks which titles or snippets are wasting impressions. Call find_quick_wins for query and page pairs near page one, and call get_top_pages for a plain traffic ranking.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
       searchType: searchTypeSchema.optional(),
       minImpressions: z.number().min(0).default(50).describe('Minimum impressions to include a page'),
     },
+    readOnly,
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
         const dateRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);
@@ -817,13 +821,14 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
   // =========================================================================
   server.tool(
     'find_content_gaps',
-    'Discover content creation opportunities: queries ranking on wrong pages, high-impression zero-click queries, new emerging queries, and topics needing dedicated pages',
+    'Find Search Console queries that land on the wrong page, high-impression queries with no clicks, and topics that still need a dedicated page. Use when the user asks what content is missing. Call find_what_to_build_next to group that demand by intent, and call find_cannibalization when several pages already compete for one query.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
       searchType: searchTypeSchema.optional(),
       minImpressions: z.number().min(0).default(20).describe('Minimum impressions to consider a query'),
     },
+    readOnly,
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
         const currentRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);
@@ -1116,13 +1121,14 @@ export function registerOpportunityTools(server: McpServer, api: GscApiClient): 
   // =========================================================================
   server.tool(
     'find_what_to_build_next',
-    'Intent-based content planning: analyzes search queries by user intent (questions, comparisons, problems, buying signals) and recommends what content to create next, grouped by topic clusters',
+    'Group Search Console queries by user intent, covering questions, comparisons, problems, and buying signals, into topic clusters for what to write next. Use when the user asks what content to create. Call find_content_gaps for mismatched landing pages and zero-click queries, and call analyze_query_landscape for the overall intent mix.',
     {
       siteUrl: siteUrlSchema,
       period: periodSchema.default('last28d'),
       searchType: searchTypeSchema.optional(),
       minImpressions: z.number().min(0).default(10).describe('Minimum impressions to consider a query'),
     },
+    readOnly,
     async ({ siteUrl, period, searchType, minImpressions }) => {
       try {
         const dateRange = await resolveDateRange(api, siteUrl, period as DatePeriod, searchType);

@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly } from '../annotations.js';
 import { z } from 'zod';
 import { Ga4ApiClient } from '../../api/ga4-client.js';
 import { createToolResponse, formatToolResponse } from '../schemas.js';
@@ -35,7 +36,7 @@ export function registerGa4ReportingTools(server: McpServer, ga4: Ga4ApiClient):
   // ── ga4_run_report ────────────────────────────────────────────────────
   server.tool(
     'ga4_run_report',
-    'Run a GA4 analytics report with specified metrics, dimensions, and date range',
+    'Run a Google Analytics 4 report for chosen metrics, dimensions, and an absolute or relative date range. Use when the user asks for historical GA4 numbers such as users, sessions, or page views. Call ga4_run_realtime_report for who is on the site right now, and call ga4_get_metadata before guessing a custom metric name.',
     {
       property_id: z.string().describe('GA4 property ID (e.g., "123456" or "properties/123456")'),
       start_date: z.string().regex(/^(\d{4}-\d{2}-\d{2}|\d+daysAgo|yesterday|today)$/).describe('Start date: YYYY-MM-DD or relative ("7daysAgo", "30daysAgo", "yesterday", "today")'),
@@ -44,6 +45,7 @@ export function registerGa4ReportingTools(server: McpServer, ga4: Ga4ApiClient):
       dimensions: z.array(z.string()).optional().describe('Dimensions to group by (e.g., ["date", "country", "pagePath"])'),
       limit: z.number().min(1).max(100000).optional().default(100).describe('Maximum rows to return (1-100000, default 100)'),
     },
+    readOnly,
     async ({ property_id, start_date, end_date, metrics, dimensions, limit }) => {
       try {
         const report = await ga4.runReport({
@@ -85,12 +87,13 @@ export function registerGa4ReportingTools(server: McpServer, ga4: Ga4ApiClient):
   // ── ga4_run_realtime_report ───────────────────────────────────────────
   server.tool(
     'ga4_run_realtime_report',
-    'Run a GA4 realtime report showing current active users and activity',
+    'Run a Google Analytics 4 realtime report of active users and on-site activity from the last thirty minutes. Use when the user asks who is on the site right now. Call ga4_run_report for any date range older than that live window, and call ga4_get_metadata if a realtime metric name is rejected.',
     {
       property_id: z.string().describe('GA4 property ID (e.g., "123456" or "properties/123456")'),
       metrics: z.array(z.string()).min(1).describe('Realtime metrics (e.g., ["activeUsers", "screenPageViews", "conversions"])'),
       dimensions: z.array(z.string()).optional().describe('Realtime dimensions (e.g., ["country", "city", "unifiedScreenName"])'),
     },
+    readOnly,
     async ({ property_id, metrics, dimensions }) => {
       try {
         const report = await ga4.runRealtimeReport(property_id, metrics, dimensions);
@@ -121,10 +124,11 @@ export function registerGa4ReportingTools(server: McpServer, ga4: Ga4ApiClient):
   // ── ga4_get_metadata ──────────────────────────────────────────────────
   server.tool(
     'ga4_get_metadata',
-    'List all available GA4 dimensions and metrics for a property (including custom definitions)',
+    'List the dimensions and metrics a Google Analytics 4 property accepts, including custom definitions. Use when a report needs valid metric and dimension names and guessing would be wrong. Call ga4_run_report once the names are known; this tool does not return the numbers.',
     {
       property_id: z.string().describe('GA4 property ID (e.g., "123456" or "properties/123456")'),
     },
+    readOnly,
     async ({ property_id }) => {
       try {
         const items = await ga4.getMetadata(property_id);

@@ -1,0 +1,217 @@
+{
+  "manifest_version": "0.3",
+  "name": "google-webtools-mcp",
+  "display_name": "Google Webtools MCP",
+  "description": "Google Search Console and GA4 for an AI agent: properties, search analytics, indexing, and verification.",
+  "long_description": "Asks Google Search Console and Google Analytics 4 about properties, sitemaps, search traffic, indexing, and site verification, and can add a property, submit a sitemap, create a GA4 property or data stream, or finish site verification when asked. Claude Desktop asks for a service account JSON key. That account must be added in Search Console and GA4, and the Search Console, Analytics Admin, Analytics Data, and Site Verification APIs must be enabled. The bundle includes the built server and its production Node dependencies. The host needs Node.js 22 or newer.",
+  "author": {
+    "name": "stufently"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stufently/google-webtools-mcp"
+  },
+  "homepage": "https://github.com/stufently/google-webtools-mcp",
+  "support": "https://github.com/stufently/google-webtools-mcp/issues",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "google-search-console",
+    "seo",
+    "google-analytics",
+    "ga4",
+    "site-verification"
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=22.0.0"
+    }
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "dist/cli.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/dist/cli.js"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "${user_config.service_account_key_file}"
+      }
+    }
+  },
+  "user_config": {
+    "service_account_key_file": {
+      "type": "file",
+      "title": "Service account key",
+      "description": "JSON key of a service account added to Search Console and GA4.",
+      "required": true
+    }
+  },
+  "privacy_policies": [
+    "https://policies.google.com/privacy"
+  ],
+  "tools": [
+    {
+      "name": "ga4_list_accounts",
+      "description": "List every Google Analytics 4 account the credentials can reach, and the properties under each account. Use when the user does not yet know the account or property id. Call ga4_list_properties when they already named an account, and call ga4_get_property for one property settings."
+    },
+    {
+      "name": "ga4_list_properties",
+      "description": "List Google Analytics 4 properties under one account, including timezone, currency, and when each property was created. Use when the user names an account and wants its properties. Call ga4_list_accounts when the account id is unknown, and call ga4_get_property to open one property."
+    },
+    {
+      "name": "ga4_get_property",
+      "description": "Read one Google Analytics 4 property display name, timezone, currency, industry, and parent account. Use when the user asks how a known property is configured. Call ga4_list_properties to find the id first, and call ga4_list_data_streams for the streams on that property."
+    },
+    {
+      "name": "ga4_create_property",
+      "description": "Create a new Google Analytics 4 property under an account, with a display name, timezone, and currency. Use when the user asks to provision a GA4 property. This server cannot remove the property afterwards. Call ga4_list_properties to see properties that already exist, and call ga4_create_data_stream next when they need a measurement id."
+    },
+    {
+      "name": "ga4_create_data_stream",
+      "description": "Create a web data stream on a Google Analytics 4 property and return its measurement id for the tag. Use when the user needs a measurement id to install analytics on a site. This server cannot delete the stream afterwards. Call ga4_list_data_streams if a stream may already exist, and call ga4_create_property first when the property itself does not exist yet."
+    },
+    {
+      "name": "ga4_list_data_streams",
+      "description": "List the data streams on a Google Analytics 4 property, including each web stream measurement id and default URI. Use when the user asks which streams or measurement ids a property already has. Call ga4_get_data_stream for one stream, and call ga4_create_data_stream only when they want a new stream."
+    },
+    {
+      "name": "ga4_get_data_stream",
+      "description": "Read one Google Analytics 4 data stream, including its measurement id, default URI, and created and updated times. Use when the user names a stream and wants its measurement id or settings. Call ga4_list_data_streams when the stream id is not known yet."
+    },
+    {
+      "name": "ga4_run_report",
+      "description": "Run a Google Analytics 4 report for chosen metrics, dimensions, and an absolute or relative date range. Use when the user asks for historical GA4 numbers such as users, sessions, or page views. Call ga4_run_realtime_report for who is on the site right now, and call ga4_get_metadata before guessing a custom metric name."
+    },
+    {
+      "name": "ga4_run_realtime_report",
+      "description": "Run a Google Analytics 4 realtime report of active users and on-site activity from the last thirty minutes. Use when the user asks who is on the site right now. Call ga4_run_report for any date range older than that live window, and call ga4_get_metadata if a realtime metric name is rejected."
+    },
+    {
+      "name": "ga4_get_metadata",
+      "description": "List the dimensions and metrics a Google Analytics 4 property accepts, including custom definitions. Use when a report needs valid metric and dimension names and guessing would be wrong. Call ga4_run_report once the names are known; this tool does not return the numbers."
+    },
+    {
+      "name": "inspect_url",
+      "description": "Inspect one URL in the Google Search Console index for coverage, mobile usability, and rich-result verdicts, including the issues behind a failure. Use when the user asks why a single URL is missing from search or looks wrong. Call batch_inspect_urls for a list of URLs, and call check_indexing_issues to audit the top traffic pages of the property."
+    },
+    {
+      "name": "batch_inspect_urls",
+      "description": "Inspect up to 50 URLs in one call and report each URL index verdict, coverage state, last crawl, robots.txt state, and fetch state. Use when the user hands over a list of URLs to check. Call inspect_url for a single URL, and call check_indexing_issues when they want the top traffic pages audited without supplying the list."
+    },
+    {
+      "name": "check_indexing_issues",
+      "description": "Audit the top traffic pages of a property for indexing failures, canonical mismatches, missing canonicals, and mobile problems. Use when the user wants an indexing health pass rather than a check of URLs they already named. Call inspect_url or batch_inspect_urls when they already have the URL list."
+    },
+    {
+      "name": "find_quick_wins",
+      "description": "Find query and page pairs that rank well but are under-clicked, sit just off page one, or would gain clicks from a small position push. Use when the user asks where search traffic is being left on the table. Call find_ctr_opportunities for page-level CTR gaps, and call find_declining_content when the problem is traffic that is already falling."
+    },
+    {
+      "name": "find_declining_content",
+      "description": "Compare the current Search Console period with the previous one and rank the pages and the queries that lost clicks. Use when the user asks what stopped getting traffic or what dropped recently. Call find_quick_wins for under-clicked rankings that are not necessarily declining, and call weekly_seo_report for a full weekly digest."
+    },
+    {
+      "name": "find_ctr_opportunities",
+      "description": "Find pages whose Search Console click-through rate sits well below the benchmark for their average position, with a fix note for each page. Use when the user asks which titles or snippets are wasting impressions. Call find_quick_wins for query and page pairs near page one, and call get_top_pages for a plain traffic ranking."
+    },
+    {
+      "name": "find_content_gaps",
+      "description": "Find Search Console queries that land on the wrong page, high-impression queries with no clicks, and topics that still need a dedicated page. Use when the user asks what content is missing. Call find_what_to_build_next to group that demand by intent, and call find_cannibalization when several pages already compete for one query."
+    },
+    {
+      "name": "find_what_to_build_next",
+      "description": "Group Search Console queries by user intent, covering questions, comparisons, problems, and buying signals, into topic clusters for what to write next. Use when the user asks what content to create. Call find_content_gaps for mismatched landing pages and zero-click queries, and call analyze_query_landscape for the overall intent mix."
+    },
+    {
+      "name": "get_search_analytics",
+      "description": "Query raw Google Search Console search analytics with explicit dates, dimensions, filters, search type, row limit, and data state. Use when the user needs a custom breakdown that the shaped reports do not offer. Call get_performance_summary for a period overview, call get_top_queries or get_top_pages for a ranking, and call compare_periods for two named date ranges."
+    },
+    {
+      "name": "get_performance_summary",
+      "description": "Summarize clicks, impressions, CTR, and average position for one property against the previous period of the same length. Use when the user asks how search traffic is doing over a named period such as the last 28 days. Call compare_periods when they name two specific date ranges, and call get_search_analytics when they need the raw rows."
+    },
+    {
+      "name": "compare_periods",
+      "description": "Compare Search Console clicks, impressions, CTR, and position between two explicit date ranges, optionally grouped by a dimension. Use when the user names a before and an after, such as a release or a season. Call get_performance_summary when they want the latest period against the one just before it, without choosing dates."
+    },
+    {
+      "name": "get_top_queries",
+      "description": "List the top Search Console queries by clicks and score each query against the CTR benchmark for its position. Use when the user asks which queries bring traffic or which queries underperform their rank. Call get_top_pages for pages rather than queries, and call find_quick_wins for opportunity buckets instead of a plain ranking."
+    },
+    {
+      "name": "get_top_pages",
+      "description": "List the top Search Console pages by clicks and score each page against the CTR benchmark for its position. Use when the user asks which URLs earn the search traffic. Call get_top_queries for queries, call get_traffic_by_device for a device split, and call find_ctr_opportunities for pages far below the benchmark."
+    },
+    {
+      "name": "get_traffic_by_device",
+      "description": "Split Search Console clicks, impressions, CTR, and average position across desktop, mobile, and tablet. Use when the user asks whether one device is underperforming the others. Call get_top_pages or get_top_queries when they want the pages or queries behind that device split."
+    },
+    {
+      "name": "analyze_query_landscape",
+      "description": "Classify the Search Console queries of a property by intent, branded versus non-branded demand, and position band. Use when the user wants the shape of search demand rather than a list of winners. Call find_new_queries for queries that just appeared, and call find_cannibalization when several pages share one query."
+    },
+    {
+      "name": "find_new_queries",
+      "description": "Find queries that are new or rising fast by diffing this Search Console period against the previous one. Use when the user asks what people started searching recently. Call analyze_query_landscape for the overall mix of intent, and call find_what_to_build_next when they want those queries grouped into topics to write."
+    },
+    {
+      "name": "find_cannibalization",
+      "description": "Detect queries where more than one page of the property ranks, and name the page that wins the clicks. Use when the user asks whether their own pages compete for the same query. Call find_content_gaps when the query lands on the wrong page, and call get_top_pages for a plain page ranking."
+    },
+    {
+      "name": "weekly_seo_report",
+      "description": "Build a one-call weekly SEO digest with traffic versus last week, top growers and decliners, quick wins, and sitemap health. Use when the user asks for a weekly report or a regular status update. Call seo_health_check for a letter grade, and call get_performance_summary when they only want the headline numbers."
+    },
+    {
+      "name": "seo_health_check",
+      "description": "Score a Search Console property from A to F, with sub-scores for traffic trend, CTR efficiency, position distribution, and sitemap health. Use when the user asks how healthy the site is in search or wants a grade. Call weekly_seo_report for the narrative digest, and call find_declining_content when they already know traffic fell."
+    },
+    {
+      "name": "list_sitemaps",
+      "description": "List the sitemaps submitted for one Google Search Console property, with status, URL counts, and error flags. Use when the user asks which sitemaps are filed or whether Google reports sitemap problems. Call get_sitemap_details to open one feed, and call submit_sitemap only when they want to file a sitemap."
+    },
+    {
+      "name": "get_sitemap_details",
+      "description": "Read one submitted sitemap, including its type, last download, URL counts by content type, and error and warning totals. Use when the user names a sitemap and wants its processing status. Call list_sitemaps when they do not yet know which feed to open."
+    },
+    {
+      "name": "submit_sitemap",
+      "description": "Submit a sitemap URL to Google Search Console so Google can discover the pages of that property. Use when the user has published or moved a sitemap and asks to file it. Submitting the same feed again refreshes it and does not delete anything. Call delete_sitemap to withdraw a feed, and call get_sitemap_details to check processing afterwards."
+    },
+    {
+      "name": "delete_sitemap",
+      "description": "Withdraw a previously submitted sitemap from a Google Search Console property. Use when the user asks to remove a stale, duplicated, or broken sitemap. Removing the sitemap does not drop its URLs from the Google index. Call submit_sitemap to file that feed again, and call list_sitemaps to see what is still submitted."
+    },
+    {
+      "name": "list_properties",
+      "description": "List every Google Search Console property the credentials can access, including each property type and permission level. Use when the user wants to see which sites they can query before choosing one. Call get_property_details for a single known property, and call add_property only when they ask to register a new site."
+    },
+    {
+      "name": "get_property_details",
+      "description": "Read the type, permission level, and verification state of one Google Search Console property. Use when the user names a specific site and wants to know how that property is registered. Call list_properties when the property URL is not known yet."
+    },
+    {
+      "name": "add_property",
+      "description": "Register a site URL or a domain as a Google Search Console property on the authenticated account. Use when the user asks to add a site to Search Console. Adding a property does not verify it. Call gsc_get_verification_token and then gsc_verify_site to prove ownership, and call list_properties to see sites that are already listed."
+    },
+    {
+      "name": "delete_property",
+      "description": "Remove a Google Search Console property from the authenticated account site list. Use when the user explicitly asks to drop a property. The property can be added back later, and this call does not erase historical data held by Google. Call delete_sitemap to withdraw a sitemap instead, and call add_property to register the site again."
+    },
+    {
+      "name": "gsc_get_verification_token",
+      "description": "Request a site-verification token for FILE, DNS_TXT, META, or ANALYTICS, and the steps for placing that token. Use when the user needs the token before they can prove they own a site. Call gsc_verify_site only after the token is in place. Domain properties cannot use FILE or META; call this tool with DNS_TXT for those."
+    },
+    {
+      "name": "gsc_verify_site",
+      "description": "Record Google site ownership for a URL or a domain once the verification token is already in place. Use when the user says the file, DNS record, meta tag, or Analytics tag is published and asks to finish verification. Call gsc_get_verification_token first if they do not have a token yet. This does not add the Search Console property; call add_property for that."
+    }
+  ]
+}

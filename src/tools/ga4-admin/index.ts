@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly, createOnce } from '../annotations.js';
 import { z } from 'zod';
 import { Ga4ApiClient } from '../../api/ga4-client.js';
 import { createToolResponse, formatToolResponse } from '../schemas.js';
@@ -8,8 +9,9 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
   // ── ga4_list_accounts ─────────────────────────────────────────────────
   server.tool(
     'ga4_list_accounts',
-    'List all GA4 accounts and their properties accessible to the authenticated user',
+    'List every Google Analytics 4 account the credentials can reach, and the properties under each account. Use when the user does not yet know the account or property id. Call ga4_list_properties when they already named an account, and call ga4_get_property for one property settings.',
     {},
+    readOnly,
     async () => {
       try {
         const summaries = await ga4.listAccountSummaries();
@@ -49,10 +51,11 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
   // ── ga4_list_properties ───────────────────────────────────────────────
   server.tool(
     'ga4_list_properties',
-    'List all GA4 properties for a specific account',
+    'List Google Analytics 4 properties under one account, including timezone, currency, and when each property was created. Use when the user names an account and wants its properties. Call ga4_list_accounts when the account id is unknown, and call ga4_get_property to open one property.',
     {
       account_id: z.string().describe('GA4 account ID (e.g., "123456" or "accounts/123456")'),
     },
+    readOnly,
     async ({ account_id }) => {
       try {
         const properties = await ga4.listProperties(account_id);
@@ -97,10 +100,11 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
   // ── ga4_get_property ──────────────────────────────────────────────────
   server.tool(
     'ga4_get_property',
-    'Get detailed information for a specific GA4 property',
+    'Read one Google Analytics 4 property display name, timezone, currency, industry, and parent account. Use when the user asks how a known property is configured. Call ga4_list_properties to find the id first, and call ga4_list_data_streams for the streams on that property.',
     {
       property_id: z.string().describe('GA4 property ID (e.g., "123456" or "properties/123456")'),
     },
+    readOnly,
     async ({ property_id }) => {
       try {
         const property = await ga4.getProperty(property_id);
@@ -137,7 +141,7 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
   // ── ga4_create_property ───────────────────────────────────────────────
   server.tool(
     'ga4_create_property',
-    'Create a new GA4 property under an account',
+    'Create a new Google Analytics 4 property under an account, with a display name, timezone, and currency. Use when the user asks to provision a GA4 property. This server cannot remove the property afterwards. Call ga4_list_properties to see properties that already exist, and call ga4_create_data_stream next when they need a measurement id.',
     {
       account_id: z.string().describe('GA4 account ID (e.g., "123456" or "accounts/123456")'),
       display_name: z.string().describe('Display name for the new property'),
@@ -145,6 +149,7 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
       currency_code: z.string().optional().default('USD').describe('Currency code (e.g., "USD", "EUR")'),
       industry_category: z.string().optional().describe('Industry category (e.g., "TECHNOLOGY", "FINANCE")'),
     },
+    createOnce,
     async ({ account_id, display_name, timezone, currency_code, industry_category }) => {
       try {
         const property = await ga4.createProperty({
@@ -189,12 +194,13 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
   // ── ga4_create_data_stream ────────────────────────────────────────────
   server.tool(
     'ga4_create_data_stream',
-    'Create a web data stream for a GA4 property and get the measurement ID',
+    'Create a web data stream on a Google Analytics 4 property and return its measurement id for the tag. Use when the user needs a measurement id to install analytics on a site. This server cannot delete the stream afterwards. Call ga4_list_data_streams if a stream may already exist, and call ga4_create_property first when the property itself does not exist yet.',
     {
       property_id: z.string().describe('GA4 property ID (e.g., "123456" or "properties/123456")'),
       url: z.string().describe('Website URL for the data stream (e.g., "https://example.com")'),
       stream_name: z.string().optional().describe('Display name for the stream (defaults to hostname)'),
     },
+    createOnce,
     async ({ property_id, url, stream_name }) => {
       try {
         const stream = await ga4.createDataStream(property_id, url, stream_name);
@@ -241,10 +247,11 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
   // ── ga4_list_data_streams ─────────────────────────────────────────────
   server.tool(
     'ga4_list_data_streams',
-    'List all data streams for a GA4 property',
+    'List the data streams on a Google Analytics 4 property, including each web stream measurement id and default URI. Use when the user asks which streams or measurement ids a property already has. Call ga4_get_data_stream for one stream, and call ga4_create_data_stream only when they want a new stream.',
     {
       property_id: z.string().describe('GA4 property ID (e.g., "123456" or "properties/123456")'),
     },
+    readOnly,
     async ({ property_id }) => {
       try {
         const streams = await ga4.listDataStreams(property_id);
@@ -284,11 +291,12 @@ export function registerGa4AdminTools(server: McpServer, ga4: Ga4ApiClient): voi
   // ── ga4_get_data_stream ───────────────────────────────────────────────
   server.tool(
     'ga4_get_data_stream',
-    'Get detailed information for a specific data stream',
+    'Read one Google Analytics 4 data stream, including its measurement id, default URI, and created and updated times. Use when the user names a stream and wants its measurement id or settings. Call ga4_list_data_streams when the stream id is not known yet.',
     {
       property_id: z.string().describe('GA4 property ID (e.g., "123456" or "properties/123456")'),
       stream_id: z.string().describe('Data stream ID (numeric, e.g., "789012")'),
     },
+    readOnly,
     async ({ property_id, stream_id }) => {
       try {
         const stream = await ga4.getDataStream(property_id, stream_id);

@@ -28,8 +28,15 @@ async function formatSitemapDetails(sitemap: SitemapInfo): Promise<string> {
       name: string,
       _description: string,
       _schema: unknown,
+      annotations: { readOnlyHint?: boolean; destructiveHint?: boolean },
       handler: SitemapDetailsHandler,
     ): void {
+      if (
+        typeof annotations?.readOnlyHint !== 'boolean'
+        || typeof annotations.destructiveHint !== 'boolean'
+      ) {
+        throw new Error(`${name} registered without readOnlyHint and destructiveHint`);
+      }
       handlers.set(name, handler);
     },
   };

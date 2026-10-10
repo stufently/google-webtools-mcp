@@ -198,11 +198,6 @@ If none succeed, the server prints a setup guide and exits.
 
 ### 3. Install
 
-One path, no clone and no Node.js on your machine: the server ships as a
-container image, `ghcr.io/stufently/google-webtools-mcp` (amd64 and arm64).
-Your MCP client starts it with `docker run`, and the service account key from
-step 1 is mounted read-only into the container. Check it starts:
-
 ```bash
 docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
@@ -210,20 +205,41 @@ docker run -i --rm \
   ghcr.io/stufently/google-webtools-mcp:1.2.0
 ```
 
-It should print `Server running on stdio` to stderr and wait for a client
-(Ctrl+C to quit). The only thing to change in any block below is
-`/absolute/path/to/service-account.json` — Docker needs an absolute path.
+Replace `/absolute/path/to/service-account.json` with the key file from step 1 (Docker needs an absolute path), then paste the command. Docker pulls the image on the first run (amd64 and arm64), so nothing else needs installing. It should print `Server running on stdio` to stderr and wait for a client (Ctrl+C to quit). Every client block below runs this same `docker run`; the key file is mounted read-only and never written into the client config.
 
-The image covers the service account. OAuth does not work in a container on
-the first run (see [Docker](#docker)); for OAuth, [build from source](#build-from-source).
+The image covers the service account. OAuth does not work in a container on the first run (see [Docker](#docker)); for OAuth, [build from source](#build-from-source).
 
 ---
 
 ## Connecting it
 
-Every client gets the same command: `docker` with the arguments above.
+Each block below starts the server with `docker` and the arguments from the install command above. The only thing to change is `/absolute/path/to/service-account.json`.
 
 ### Claude Code
+
+Project file `.mcp.json`, at the root of the project:
+
+```json
+{
+  "mcpServers": {
+    "google-webtools": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
+        "-e",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
+        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+      ]
+    }
+  }
+}
+```
+
+The same server can be registered from a terminal:
 
 ```bash
 claude mcp add google-webtools -- docker run -i --rm \
@@ -233,6 +249,105 @@ claude mcp add google-webtools -- docker run -i --rm \
 ```
 
 Add `--scope user` to make it available in every project.
+
+### Claude Desktop
+
+`claude_desktop_config.json` — macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json`, Linux `~/.config/Claude/claude_desktop_config.json`. Restart Claude Desktop after saving.
+
+```json
+{
+  "mcpServers": {
+    "google-webtools": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
+        "-e",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
+        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+      ]
+    }
+  }
+}
+```
+
+Claude Desktop can also install this server in one click. Download the `.mcpb` from https://github.com/stufently/google-webtools-mcp/releases/latest and open it. Desktop asks for the service account JSON key, which must belong to an account added in Search Console and GA4.
+
+### Cursor
+
+`~/.cursor/mcp.json`, or `.cursor/mcp.json` in a project:
+
+```json
+{
+  "mcpServers": {
+    "google-webtools": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
+        "-e",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
+        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+      ]
+    }
+  }
+}
+```
+
+### Windsurf
+
+`mcp_config.json`. On macOS and Linux that is `~/.config/devin/mcp_config.json` (or `$XDG_CONFIG_HOME/devin/mcp_config.json`). On Windows it is `%APPDATA%\devin\mcp_config.json`. Older builds used `~/.codeium/windsurf/mcp_config.json`.
+
+```json
+{
+  "mcpServers": {
+    "google-webtools": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
+        "-e",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
+        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+      ]
+    }
+  }
+}
+```
+
+### Zed
+
+Zed calls MCP servers context servers. The file is `settings.json` (`zed: open settings`):
+
+```json
+{
+  "context_servers": {
+    "google-webtools": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "/absolute/path/to/service-account.json:/creds/sa.json:ro",
+        "-e",
+        "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
+        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
+      ],
+      "env": {}
+    }
+  }
+}
+```
 
 ### Codex
 
@@ -256,64 +371,17 @@ args = [
 ]
 ```
 
-### Claude Desktop, Cursor, Windsurf
-
-The same `mcpServers` block for all three; only the file differs:
-
-| Client | Config file |
-| --- | --- |
-| Claude Desktop | macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json` |
-| Cursor | `~/.cursor/mcp.json`, or `.cursor/mcp.json` in a project |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
-
-```json
-{
-  "mcpServers": {
-    "google-webtools": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm",
-        "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
-        "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
-      ]
-    }
-  }
-}
-```
-
-Restart Claude Desktop after editing the file; Cursor and Windsurf pick it up
-from their MCP settings page.
-
-### Zed
-
-`settings.json` (`zed: open settings`):
-
-```json
-{
-  "context_servers": {
-    "google-webtools": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm",
-        "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
-        "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.0"
-      ],
-      "env": {}
-    }
-  }
-}
-```
-
 ### Key as a string instead of a file
 
 Where mounting a file is awkward (CI, a remote runner), pass the whole key JSON
 in `GOOGLE_SERVICE_ACCOUNT_KEY` and let Docker forward it from the environment:
 replace the `-v …` and `-e GOOGLE_APPLICATION_CREDENTIALS=…` arguments with
-`-e GOOGLE_SERVICE_ACCOUNT_KEY`, and set `GOOGLE_SERVICE_ACCOUNT_KEY` in the
-client's `env` block (or your shell). This is also what the
-[MCP registry](https://registry.modelcontextprotocol.io) entry
+`-e GOOGLE_SERVICE_ACCOUNT_KEY`, and set the variable in your shell
+(`export GOOGLE_SERVICE_ACCOUNT_KEY="$(cat service-account.json)"`) or in the
+client's `env` block. Inside a JSON or TOML config the key must be a single
+escaped string, not pasted JSON: `jq -c . service-account.json | jq -R .`
+prints it ready to paste. This is
+also what the [MCP registry](https://registry.modelcontextprotocol.io) entry
 `io.github.stufently/google-webtools-mcp` asks for.
 
 ### Build from source
@@ -327,8 +395,7 @@ npm install
 npm run build
 ```
 
-Then use `node` as the command and `/path/to/google-webtools-mcp/dist/cli.js`
-as its only argument, with the credentials in `env`, for example:
+Then use `node` as the command and `/path/to/google-webtools-mcp/dist/cli.js` as its only argument, with the credentials in `env`, for example:
 
 ```bash
 claude mcp add google-webtools \
@@ -338,10 +405,7 @@ claude mcp add google-webtools \
 
 ### HTTP transport
 
-For a client that talks to the server over the network instead of spawning it.
-The mode is **stateless**: every `POST /mcp` is handled by a fresh MCP server
-instance, no `Mcp-Session-Id` is issued, and requests can run in parallel. The
-Google credentials, cache and rate limiter are shared across requests.
+For a client that talks to the server over the network instead of spawning it. The mode is **stateless**: every `POST /mcp` is handled by a fresh MCP server instance, no `Mcp-Session-Id` is issued, and requests can run in parallel. The Google credentials, cache and rate limiter are shared across requests.
 
 ```bash
 node dist/cli.js --http           # listens on :3000
@@ -350,45 +414,36 @@ PORT=8080 node dist/cli.js --http # or pick a port
 
 Endpoints:
 
-- `POST /mcp` — MCP JSON-RPC (Streamable HTTP). Send
-  `Accept: application/json, text/event-stream`.
+- `POST /mcp` — MCP JSON-RPC (Streamable HTTP). Send `Accept: application/json, text/event-stream`.
 - `GET /health` — liveness, returns `{"status":"ok","auth":"<method>"}`.
-- `GET`/`DELETE /mcp` return 405: there is no server-to-client stream and no
-  session to terminate.
+- `GET`/`DELETE /mcp` return 405: there is no server-to-client stream and no session to terminate.
 
-There is no authentication on the HTTP endpoint and it listens on all
-interfaces, while the tools act with your Google credentials (including write
-tools). Keep it on localhost or behind an authenticating proxy.
+There is no authentication on the HTTP endpoint and it listens on all interfaces, while the tools act with your Google credentials (including write tools). Keep it on localhost or behind an authenticating proxy.
 
 ### Docker
 
-The OAuth consent callback listens on a random port on `127.0.0.1` *inside* the
-container, so a browser on the host cannot reach it and a first OAuth run in
-Docker times out. Either use a service account (mount the key and set
-`GOOGLE_APPLICATION_CREDENTIALS`), or authorize once outside Docker and copy
-`~/.google-webtools-mcp/token.json` into the token volume.
+The OAuth consent callback listens on a random port on `127.0.0.1` *inside* the container, so a browser on the host cannot reach it and a first OAuth run in Docker times out. Either use a service account (the install command above), or authorize once outside Docker and copy `~/.google-webtools-mcp/token.json` into the token volume.
 
 ```bash
 docker compose up --build
 ```
 
-The bundled `docker-compose.yml` mounts `./credentials` read-only and keeps the
-OAuth token in a named volume so it survives container rebuilds. The
-`Dockerfile` compiles the TypeScript itself, so no local `dist/` is needed; it
-is the same build that is published to GHCR.
+The bundled `docker-compose.yml` mounts `./credentials` read-only and keeps the OAuth token in a named volume so it survives container rebuilds. The `Dockerfile` compiles the TypeScript itself, so no local `dist/` is needed; it is the same build that is published to GHCR.
 
 ---
 
-## Common prompts
+## Example prompts
 
-Once connected, talk to the agent in plain language:
+- Why did my site lose clicks last week?
+- Which pages rank close to page one but get almost no clicks?
+- Are these URLs indexed, and what is wrong with the ones that are not?
+- What should we publish next, based on the queries we already show up for?
+- How is search traffic split between phones and desktops?
 
-- *"List my Search Console properties, then give me a weekly SEO report for the main one."*
-- *"Find quick wins for https://example.com/ — pages that are close to page 1 or getting impressions but no clicks."*
-- *"Which pages lost the most traffic in the last 28 days compared to the previous period, and why?"*
-- *"Check whether these 12 URLs are indexed, and tell me what's wrong with the ones that aren't."*
-- *"Create a GA4 property for example.com with a web data stream, then give me the measurement ID to install."*
-- *"Am I cannibalizing myself anywhere? Show queries where more than one of my pages ranks."*
+## More prompts
+
+- Create a GA4 property for example.com with a web stream and give me the measurement id to install.
+- Where are my own pages competing for the same query?
 
 ---
 
@@ -464,7 +519,10 @@ git tag v1.2.3 && git push origin v1.2.3
 
 The `Publish` workflow builds and pushes the image (`:<version>` and
 `:latest`) and publishes `server.json` to the MCP registry; it refuses a tag
-that differs from `package.json`.
+that differs from `package.json`. The `MCPB` workflow, on the same tag,
+builds the Desktop Extension with `scripts/build-mcpb.sh` and uploads
+`dist-mcpb/*.mcpb` to the GitHub Release. It does not push the image or
+the registry entry.
 
 ---
 

@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { readOnly, addOnly } from '../annotations.js';
 import { z } from 'zod';
 import { VerificationApiClient } from '../../api/verification-client.js';
 import { createToolResponse, formatToolResponse } from '../schemas.js';
@@ -48,11 +49,12 @@ export function registerVerificationTools(server: McpServer, verification: Verif
   // ── gsc_get_verification_token ────────────────────────────────────────
   server.tool(
     'gsc_get_verification_token',
-    'Get a verification token for a site using the specified verification method (FILE, DNS_TXT, META, or ANALYTICS)',
+    'Request a site-verification token for FILE, DNS_TXT, META, or ANALYTICS, and the steps for placing that token. Use when the user needs the token before they can prove they own a site. Call gsc_verify_site only after the token is in place. Domain properties cannot use FILE or META; call this tool with DNS_TXT for those.',
     {
       site_url: z.string().describe('Site URL or domain to verify (e.g., "https://example.com/" or "example.com" for domain verification)'),
       method: z.enum(['FILE', 'DNS_TXT', 'META', 'ANALYTICS']).describe('Verification method to use'),
     },
+    readOnly,
     async ({ site_url, method }) => {
       try {
         const result = await verification.getToken(site_url, method);
@@ -93,11 +95,12 @@ export function registerVerificationTools(server: McpServer, verification: Verif
   // ── gsc_verify_site ───────────────────────────────────────────────────
   server.tool(
     'gsc_verify_site',
-    'Verify site ownership using a previously configured verification method',
+    'Record Google site ownership for a URL or a domain once the verification token is already in place. Use when the user says the file, DNS record, meta tag, or Analytics tag is published and asks to finish verification. Call gsc_get_verification_token first if they do not have a token yet. This does not add the Search Console property; call add_property for that.',
     {
       site_url: z.string().describe('Site URL or domain to verify (e.g., "https://example.com/" or "example.com")'),
       method: z.enum(['FILE', 'DNS_TXT', 'META', 'ANALYTICS']).describe('Verification method that was configured'),
     },
+    addOnly,
     async ({ site_url, method }) => {
       try {
         const result = await verification.verifySite(site_url, method);
