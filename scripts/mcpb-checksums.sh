@@ -85,9 +85,16 @@ else
   : > "$tmp"
 fi
 
+# Sort raw names, NUL-delimited. Sorting sha256sum's escaped lines would
+# put "a<LF>.mcpb" after "aZ.mcpb"; LC_ALL=C on the real name does the opposite.
+sorted=()
+while IFS= read -r -d '' name; do
+  sorted+=("$name")
+done < <(printf '%s\0' "${bundles[@]}" | sort -z)
+
 (
   cd -- "$dir" || exit 1
-  sha256sum -- "${bundles[@]}" | sort -k2
+  sha256sum -- "${sorted[@]}"
 ) >> "$tmp"
 
 if ! (
