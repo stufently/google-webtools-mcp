@@ -20,6 +20,9 @@ jobs:
       - name: Build the mcpb bundle
         run: bash scripts/build-mcpb.sh
 
+      - name: Compute SHA256 checksums for the bundles
+        run: bash scripts/mcpb-checksums.sh dist-mcpb dist-mcpb/checksums.txt
+
       - name: Create the GitHub release if it does not exist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -32,3 +35,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "$GITHUB_REF_NAME" dist-mcpb/*.mcpb --clobber
+
+      - name: Upload the bundle checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" dist-mcpb/checksums.txt --clobber
