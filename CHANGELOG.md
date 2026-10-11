@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Releases for `v*` tags include `checksums.txt` with a SHA256 (`sha256sum` format) for each `.mcpb` bundle.
+
 ### Fixed
 
 - `weekly_seo_report` and `seo_health_check` always printed "no recommendations": the recommendation engine was called with no rows. Both now fetch the period's query+page rows (up to 5000) and list the top recommendations, deduplicated and sorted by priority. CTR is judged against the position benchmark, and consolidation advice appears only when two or more pages carry real volume for a query (the same bar as `find_cannibalization`). Pages below that bar are left out of the consolidation advice itself. The `weekly_seo_report` description mentions recommendations again.

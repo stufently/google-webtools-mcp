@@ -276,6 +276,14 @@ Add `--scope user` to make it available in every project.
 
 Claude Desktop can also install this server in one click. Download the `.mcpb` from https://github.com/stufently/google-webtools-mcp/releases/latest and open it. Desktop asks for the service account JSON key, which must belong to an account added in Search Console and GA4.
 
+The same release includes `checksums.txt` with a SHA256 for each `.mcpb`. Download that file next to the bundle and check it:
+
+```bash
+sha256sum -c --ignore-missing checksums.txt   # run next to the downloaded .mcpb
+```
+
+On macOS, `shasum -a 256 -c --ignore-missing checksums.txt` does the same check.
+
 ### Cursor
 
 `~/.cursor/mcp.json`, or `.cursor/mcp.json` in a project:
@@ -520,8 +528,9 @@ git tag v1.2.3 && git push origin v1.2.3
 The `Publish` workflow builds and pushes the image (`:<version>` and
 `:latest`) and publishes `server.json` to the MCP registry; it refuses a tag
 that differs from `package.json`. The `MCPB` workflow, on the same tag,
-builds the Desktop Extension with `scripts/build-mcpb.sh` and uploads
-`dist-mcpb/*.mcpb` to the GitHub Release. It does not push the image or
+builds the Desktop Extension with `scripts/build-mcpb.sh`, writes
+`dist-mcpb/checksums.txt`, and uploads the `.mcpb` bundles and that
+checksum file to the GitHub Release. It does not push the image or
 the registry entry.
 
 ---
