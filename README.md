@@ -211,6 +211,21 @@ The image covers the service account. OAuth does not work in a container on the 
 
 ---
 
+## Verified clients and platforms
+
+Only what has actually been run is listed as verified. Everything else in
+[Connecting it](#connecting-it) is a documented config that nobody has checked end to end.
+
+| Client / runtime | OS | How it runs | Status | Evidence |
+|---|---|---|---|---|
+| Claude Code 2.1 | Ubuntu 26.04 LTS, x86_64 | Docker image built from this repo, stdio, gcloud ADC mounted read-only | Verified | Daily use on the maintainer's host |
+| Codex CLI 0.162 | Ubuntu 26.04 LTS, x86_64 | Same Docker image, stdio | Configured, not checked separately | Maintainer's host config |
+| Node.js 22, 24, 26 | Ubuntu (`ubuntu-latest`) | `npm ci`, lint, unit tests, build | Verified in CI | `ci.yml` matrix |
+| Docker image | Ubuntu (`ubuntu-latest`) | `initialize` + `tools/list` over stdio | Verified in CI | `ci.yml`, job `image` |
+| Claude Desktop (`.mcpb`) | macOS, Windows | Desktop Extension | Not verified | Bundle is built in CI, never installed in a real Desktop |
+| Cursor, Windsurf, Zed | any | Configs below | Not verified | Documented only |
+| macOS, Windows | — | Any client | Not verified | No CI runner on these systems |
+
 ## Connecting it
 
 Each block below starts the server with `docker` and the arguments from the install command above. The only thing to change is `/absolute/path/to/service-account.json`.
@@ -283,6 +298,14 @@ sha256sum -c --ignore-missing checksums.txt   # run next to the downloaded .mcpb
 ```
 
 On macOS, `shasum -a 256 -c --ignore-missing checksums.txt` does the same check.
+
+Releases from the next tag on also carry a GitHub build provenance attestation for each
+`.mcpb`, signed in the release workflow. Check that a bundle was built by this
+repository's workflow and not swapped afterwards (needs the GitHub CLI):
+
+```bash
+gh attestation verify <bundle>.mcpb --repo stufently/google-webtools-mcp
+```
 
 ### Cursor
 
@@ -529,8 +552,8 @@ The `Publish` workflow builds and pushes the image (`:<version>` and
 `:latest`) and publishes `server.json` to the MCP registry; it refuses a tag
 that differs from `package.json`. The `MCPB` workflow, on the same tag,
 builds the Desktop Extension with `scripts/build-mcpb.sh`, writes
-`dist-mcpb/checksums.txt`, and uploads the `.mcpb` bundles and that
-checksum file to the GitHub Release. It does not push the image or
+`dist-mcpb/checksums.txt`, attests build provenance for every bundle, and
+uploads the `.mcpb` bundles and that checksum file to the GitHub Release. It does not push the image or
 the registry entry.
 
 ---
