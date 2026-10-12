@@ -7,6 +7,8 @@ All notable changes to this project are documented here.
 ### Added
 
 - GitHub Releases for `v*` tags include `checksums.txt` with a SHA256 (`sha256sum` format) for each `.mcpb` bundle.
+- The `MCPB` workflow attests build provenance for every `.mcpb` (`actions/attest-build-provenance`); check one with `gh attestation verify`.
+- README: a "Verified clients and platforms" table that separates what was run from what is only documented.
 
 ### Fixed
 
