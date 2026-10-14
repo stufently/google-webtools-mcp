@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- The `Publish` workflow attests build provenance for the GHCR image it pushes (`actions/attest`, stored in the registry); check one with `gh attestation verify oci://ghcr.io/stufently/google-webtools-mcp:<version> --repo stufently/google-webtools-mcp`.
+
 ## [1.2.2] - 2026-10-14
 
 ### Added

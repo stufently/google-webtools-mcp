@@ -13,7 +13,12 @@ on:
 permissions:
   contents: read
   packages: write
+  # OIDC for the registry login and for the Sigstore certificate that signs the
+  # image provenance; write access to the attestation store; and the artifact
+  # storage record actions/attest emits with push-to-registry.
   id-token: write
+  attestations: write
+  artifact-metadata: write
 
 concurrency:
   group: publish
@@ -57,6 +62,7 @@ jobs:
 
       # arm64 too: most Claude Desktop and Cursor users are on Apple silicon.
       - name: Build and push image
+        id: push
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -65,6 +71,19 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
             ${{ env.IMAGE }}:latest
+
+      # Build provenance for the pushed image, signed and stored next to it in
+      # GHCR. The digest is the manifest list build-push just pushed, so both
+      # tags of this run are covered; `gh attestation verify
+      # oci://ghcr.io/stufently/google-webtools-mcp:<version> --repo
+      # stufently/google-webtools-mcp` proves the image was built here. This
+      # workflow never runs for pull requests, so every run pushes an image.
+      - name: Attest the container image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
 
       # The registry reads the image anonymously and rejects it unless the
       # label names this server. Fail here, with the reason, rather than there.
