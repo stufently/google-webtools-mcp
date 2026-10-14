@@ -73,16 +73,21 @@ jobs:
       - name: Build image
         run: docker build -t google-webtools-mcp:ci .
 
-      # A syntactically complete but fake service account key: the server
-      # authenticates lazily, so initialize and tools/list need no Google call.
-      - name: initialize + tools/list over stdio
+      # No credentials and no network, the way a directory (Glama) introspects
+      # the image: the server must still start, answer initialize and
+      # tools/list, and report the missing credentials only on a tool call.
+      # The container is named so a timeout cannot leave it running.
+      - name: initialize + tools/list over stdio, no credentials, no network
         run: |
-          export GOOGLE_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"ci","private_key_id":"ci","private_key":"-----BEGIN PRIVATE KEY-----\nCI\n-----END PRIVATE KEY-----\n","client_email":"ci@ci.iam.gserviceaccount.com","client_id":"1","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token"}'
+          name="gwt-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
           { printf '%s\n' \
               '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
               '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-              '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
-            sleep 5; } | timeout 60 docker run -i --rm -e GOOGLE_SERVICE_ACCOUNT_KEY google-webtools-mcp:ci > out.jsonl
+              '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+              '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_properties","arguments":{}}}'
+            sleep 5; } | timeout 60 docker run -i --rm --name "$name" --network none google-webtools-mcp:ci > out.jsonl
           cat out.jsonl
           jq -e 'select(.id == 1) | .result.serverInfo.name == "google-webtools-mcp"' out.jsonl
           jq -e 'select(.id == 2) | (.result.tools | length) > 0' out.jsonl
+          jq -e 'select(.id == 3) | .result.isError == true and (.result.content[0].text | contains("No valid Google Search Console credentials"))' out.jsonl

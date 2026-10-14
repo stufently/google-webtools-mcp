@@ -8,6 +8,7 @@
 import { google } from 'googleapis';
 import type { webmasters_v3, searchconsole_v1 } from 'googleapis';
 import type { AuthClient } from '../auth/client-factory.js';
+import type { DeferredAuth } from '../auth/deferred-auth.js';
 import { CacheManager } from '../cache/cache-manager.js';
 import { RateLimiter } from '../utils/rate-limiter.js';
 import type {
@@ -45,7 +46,7 @@ export class GscApiClient {
   readonly cache: CacheManager;
   readonly rateLimiter: RateLimiter;
 
-  constructor(auth: AuthClient, cache?: CacheManager, rateLimiter?: RateLimiter) {
+  constructor(auth: AuthClient | DeferredAuth, cache?: CacheManager, rateLimiter?: RateLimiter) {
     this.webmasters = google.webmasters({ version: 'v3', auth: auth as any });
     this.searchconsole = google.searchconsole({ version: 'v1', auth: auth as any });
     this.cache = cache ?? new CacheManager();

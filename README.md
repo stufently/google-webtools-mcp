@@ -194,7 +194,11 @@ line on stderr to see which identity was actually used.
 4. `./credentials.json` in the working directory, if it looks like OAuth client
    secrets (has an `installed` or `web` key).
 
-If none succeed, the server prints a setup guide and exits.
+If none succeed, the server prints a setup guide to stderr and starts anyway,
+so a host or a directory can still list its tools without keys. Every tool call
+then looks for credentials again and, until one method works, returns the same
+error with the setup hint instead of calling Google. Fixing the key file needs
+no restart.
 
 ### 3. Install
 

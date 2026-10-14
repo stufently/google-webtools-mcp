@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import type { analyticsadmin_v1beta, analyticsdata_v1beta } from 'googleapis';
 import type { AuthClient } from '../auth/client-factory.js';
+import type { DeferredAuth } from '../auth/deferred-auth.js';
 import { RateLimiter } from '../utils/rate-limiter.js';
 import type {
   Ga4AccountSummary, Ga4Property, Ga4DataStream,
@@ -12,7 +13,7 @@ export class Ga4ApiClient {
   readonly data: analyticsdata_v1beta.Analyticsdata;
   readonly rateLimiter: RateLimiter;
 
-  constructor(auth: AuthClient, rateLimiter?: RateLimiter) {
+  constructor(auth: AuthClient | DeferredAuth, rateLimiter?: RateLimiter) {
     this.admin = google.analyticsadmin({ version: 'v1beta', auth: auth as any });
     this.data = google.analyticsdata({ version: 'v1beta', auth: auth as any });
     this.rateLimiter = rateLimiter ?? new RateLimiter(10, 15);

@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import type { siteVerification_v1 } from 'googleapis';
 import type { AuthClient } from '../auth/client-factory.js';
+import type { DeferredAuth } from '../auth/deferred-auth.js';
 import { RateLimiter } from '../utils/rate-limiter.js';
 
 export interface VerificationToken {
@@ -12,7 +13,7 @@ export class VerificationApiClient {
   readonly verification: siteVerification_v1.Siteverification;
   readonly rateLimiter: RateLimiter;
 
-  constructor(auth: AuthClient, rateLimiter?: RateLimiter) {
+  constructor(auth: AuthClient | DeferredAuth, rateLimiter?: RateLimiter) {
     this.verification = google.siteVerification({ version: 'v1', auth: auth as any });
     this.rateLimiter = rateLimiter ?? new RateLimiter(5, 10);
   }
