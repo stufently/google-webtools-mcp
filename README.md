@@ -206,7 +206,7 @@ no restart.
 docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
-  ghcr.io/stufently/google-webtools-mcp:1.2.1
+  ghcr.io/stufently/google-webtools-mcp:1.2.2
 ```
 
 Replace `/absolute/path/to/service-account.json` with the key file from step 1 (Docker needs an absolute path), then paste the command. Docker pulls the image on the first run (amd64 and arm64), so nothing else needs installing. It should print `Server running on stdio` to stderr and wait for a client (Ctrl+C to quit). Every client block below runs this same `docker run`; the key file is mounted read-only and never written into the client config.
@@ -251,7 +251,7 @@ Project file `.mcp.json`, at the root of the project:
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.2"
       ]
     }
   }
@@ -264,7 +264,7 @@ The same server can be registered from a terminal:
 claude mcp add google-webtools -- docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
-  ghcr.io/stufently/google-webtools-mcp:1.2.1
+  ghcr.io/stufently/google-webtools-mcp:1.2.2
 ```
 
 Add `--scope user` to make it available in every project.
@@ -286,7 +286,7 @@ Add `--scope user` to make it available in every project.
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.2"
       ]
     }
   }
@@ -328,7 +328,7 @@ gh attestation verify <bundle>.mcpb --repo stufently/google-webtools-mcp
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.2"
       ]
     }
   }
@@ -352,7 +352,7 @@ gh attestation verify <bundle>.mcpb --repo stufently/google-webtools-mcp
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.2"
       ]
     }
   }
@@ -376,7 +376,7 @@ Zed calls MCP servers context servers. The file is `settings.json` (`zed: open s
         "/absolute/path/to/service-account.json:/creds/sa.json:ro",
         "-e",
         "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-        "ghcr.io/stufently/google-webtools-mcp:1.2.1"
+        "ghcr.io/stufently/google-webtools-mcp:1.2.2"
       ],
       "env": {}
     }
@@ -390,7 +390,7 @@ Zed calls MCP servers context servers. The file is `settings.json` (`zed: open s
 codex mcp add google-webtools -- docker run -i --rm \
   -v /absolute/path/to/service-account.json:/creds/sa.json:ro \
   -e GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json \
-  ghcr.io/stufently/google-webtools-mcp:1.2.1
+  ghcr.io/stufently/google-webtools-mcp:1.2.2
 ```
 
 Or by hand, in `~/.codex/config.toml`:
@@ -402,7 +402,7 @@ args = [
   "run", "-i", "--rm",
   "-v", "/absolute/path/to/service-account.json:/creds/sa.json:ro",
   "-e", "GOOGLE_APPLICATION_CREDENTIALS=/creds/sa.json",
-  "ghcr.io/stufently/google-webtools-mcp:1.2.1",
+  "ghcr.io/stufently/google-webtools-mcp:1.2.2",
 ]
 ```
 

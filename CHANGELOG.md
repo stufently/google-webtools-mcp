@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-14
+
 ### Added
 
 - GitHub Releases for `v*` tags include `checksums.txt` with a SHA256 (`sha256sum` format) for each `.mcpb` bundle.
