@@ -19,6 +19,17 @@ const IMAGE = 'ghcr.io/stufently/google-webtools-mcp';
 const SEMVER = String.raw`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?`;
 const TAG_RE = new RegExp(`${IMAGE.replace(/[.]/g, '\\.')}:${SEMVER}`, 'g');
 
+// The README's "Add to Cursor" button carries the same `docker run` as base64 JSON
+// in its `config` parameter, so the tag inside it is checked and rewritten too.
+const LINK_RE = /(https:\/\/cursor\.com\/en\/install-mcp\?name=[^&\s)]+&config=)([^\s)]+)/g;
+const linkTags = [];
+const relink = (text, fix) =>
+  text.replace(LINK_RE, (_, head, encoded) => {
+    const json = Buffer.from(decodeURIComponent(encoded), 'base64').toString('utf8');
+    linkTags.push(...(json.match(TAG_RE) ?? []));
+    return head + encodeURIComponent(Buffer.from(fix(json)).toString('base64'));
+  });
+
 const read = (f) => readFileSync(root + f, 'utf8');
 const version = JSON.parse(read('package.json')).version;
 const image = `${IMAGE}:${version}`;
@@ -34,6 +45,9 @@ if (server.packages?.[0]?.identifier !== image)
   problems.push(`server.json identifier is ${server.packages?.[0]?.identifier}`);
 if (readmeTags.length === 0) problems.push(`README.md pins no ${IMAGE}:<version>`);
 for (const tag of new Set(readmeTags)) if (tag !== image) problems.push(`README.md pins ${tag}`);
+relink(readme, (json) => json);
+for (const tag of new Set(linkTags))
+  if (tag !== image) problems.push(`README.md Add to Cursor link pins ${tag}`);
 
 if (check) {
   if (problems.length) {
@@ -50,7 +64,10 @@ if (check) {
   server.version = version;
   server.packages[0].identifier = image;
   writeFileSync(root + 'server.json', JSON.stringify(server, null, 2) + '\n');
-  writeFileSync(root + 'README.md', readme.replace(TAG_RE, image));
+  writeFileSync(
+    root + 'README.md',
+    relink(readme.replace(TAG_RE, image), (json) => json.replace(TAG_RE, image)),
+  );
   console.log(`server.json and README.md now name ${image}`);
   // Under `npm version` with git tagging on, npm commits only package.json and
   // the lockfile; stage these too so the commit and tag carry them. Staging is

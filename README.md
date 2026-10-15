@@ -313,6 +313,10 @@ gh attestation verify <bundle>.mcpb --repo stufently/google-webtools-mcp
 
 ### Cursor
 
+[![Add google-webtools MCP server to Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=google-webtools&config=eyJjb21tYW5kIjoiZG9ja2VyIiwiYXJncyI6WyJydW4iLCItaSIsIi0tcm0iLCItdiIsIi9hYnNvbHV0ZS9wYXRoL3RvL3NlcnZpY2UtYWNjb3VudC5qc29uOi9jcmVkcy9zYS5qc29uOnJvIiwiLWUiLCJHT09HTEVfQVBQTElDQVRJT05fQ1JFREVOVElBTFM9L2NyZWRzL3NhLmpzb24iLCJnaGNyLmlvL3N0dWZlbnRseS9nb29nbGUtd2VidG9vbHMtbWNwOjEuMi4yIl19)
+
+After installing, replace `/absolute/path/to/service-account.json` in `~/.cursor/mcp.json` with the path to your key file. Or add the block below by hand.
+
 `~/.cursor/mcp.json`, or `.cursor/mcp.json` in a project:
 
 ```json
