@@ -9,3 +9,4 @@ credentials.json
 token.json
 .DS_Store
 coverage/
+_site/

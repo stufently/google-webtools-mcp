@@ -1,0 +1,51 @@
+# Site config for .github/site/build.py. Everything else comes from README.md.
+name = "Google Webtools MCP"
+title = "Google Webtools MCP — Search Console and GA4 MCP server"
+headline = "MCP server for Google Search Console and Google Analytics 4"
+description = "39 tools for AI agents: Search Console performance, indexing checks, GA4 reports and site verification. Runs as a Docker image, MIT."
+lang = "en"
+keywords = ["google search console mcp", "google analytics 4 mcp", "ga4 mcp", "mcp server", "url inspection", "site verification", "claude code", "seo"]
+license = "MIT"
+license_url = "https://opensource.org/license/mit"
+category = "DeveloperApplication"
+os = "Linux, macOS, Windows"
+programming_language = "TypeScript"
+eyebrow = "Open source · MIT · Node.js 22+ · Docker"
+
+landing_sections = ["What it does", "Setup", "Example prompts"]
+
+pages = []
+docs_dir = ""
+
+features = [
+  "Search Console: properties, sitemaps and search analytics with period-over-period comparison.",
+  "Opportunities: quick wins, declining content, CTR gaps, content gaps and topic clusters by query intent.",
+  "Indexing: URL Inspection for one URL or up to 50 per call, plus an indexing audit of top traffic pages.",
+  "GA4: list and create properties and web data streams, run reports and realtime reports, read metadata.",
+  "Site verification: get a FILE, DNS_TXT, META or ANALYTICS token and complete ownership verification.",
+  "Weekly SEO report and an A–F health check; responses come with a Summary, Data, Recommendations and Limitations.",
+]
+
+[[faq]]
+q = "How do I run Google Webtools MCP?"
+a = "Run the Docker image ghcr.io/stufently/google-webtools-mcp with your service account JSON key mounted read-only and GOOGLE_APPLICATION_CREDENTIALS pointing at it, then register the same docker run command in your MCP client. For OAuth, build from source with Node.js 22 or newer."
+
+[[faq]]
+q = "Which Google APIs does it use?"
+a = "Five: Search Console API (webmasters v3 and searchconsole v1 for URL Inspection), Google Analytics Admin API v1beta, Google Analytics Data API v1beta and Site Verification API v1."
+
+[[faq]]
+q = "Which AI clients does it work with?"
+a = "The README has configs for Claude Code, Claude Desktop, Cursor, Windsurf, Zed and Codex. Claude Code is verified in daily use; Claude Desktop, Cursor, Windsurf and Zed are documented but not verified end to end."
+
+[[faq]]
+q = "Which credentials does it need?"
+a = "A Google service account (GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_SERVICE_ACCOUNT_KEY) added in Search Console and GA4, Application Default Credentials, or an OAuth desktop client via GSC_OAUTH_CLIENT_SECRETS_FILE. The first method that yields usable credentials wins."
+
+[[faq]]
+q = "Can it change my live Search Console or GA4 configuration?"
+a = "Yes. add_property, delete_property, submit_sitemap, delete_sitemap, ga4_create_property, ga4_create_data_stream and gsc_verify_site change live configuration, and there is no dry-run mode."
+
+[[faq]]
+q = "What are the data limits?"
+a = "Search Console data is typically 2–3 days behind and covers 16 months at most. Search analytics is capped at 25,000 rows per request, GA4 reports at 100,000, and batch_inspect_urls handles 50 URLs per call."
