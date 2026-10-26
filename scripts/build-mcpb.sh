@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-NODE_IMAGE=node:24.21.0-slim
+NODE_IMAGE=node:24.22.1-slim
 MCPB_CLI=@anthropic-ai/mcpb@2.1.2
 UID_GID="$(id -u):$(id -g)"
 ROOT=$PWD
